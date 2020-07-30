@@ -1,0 +1,56 @@
+{
+  "name": "@nike/dynamo-client",
+  "version": "0.2.2",
+  "description": "dynamo data client with async-friendly API",
+  "main": "src/index.js",
+  "scripts": {
+    "style": "prettier --config package.json  --write \"{src,test}/**/*.js\"",
+    "lint": "eslint -c package.json \"{src,test}/**/*.js\"",
+    "check": "npm run style && npm run lint",
+    "test": "npm run check && npm run test:unit",
+    "test:unit": "ava",
+    "test:watch": "ava --watch",
+    "test:coverage": "nyc --check-coverage --lines 80 ava",
+    "test:coverage:open": "npm run test:coverage; npm run report:open",
+    "report": "nyc report --reporter=html",
+    "report:open": "npm run report && open coverage/index.html",
+    "test:ci": "npm run check && blue-tape test/**/**.spec.js | tap-xunit > xunit.xml && blue-tape test/**/**.int.js | tap-xunit > xunit.xml && npm run test:coverage && npm run report:ci"
+  },
+  "files": [
+    "src/"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.nike.com/sprockets/node-dynamo.git"
+  },
+  "keywords": [
+    "dynamo"
+  ],
+  "author": "Tim Kye",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@kyeotic/eslint-config": "^1.0.2",
+    "ava": "^3.11.0",
+    "aws-sdk": "^2.722.0",
+    "eslint": "^5.16.0",
+    "nock": "^13.0.3",
+    "nyc": "^15.1.0",
+    "prettier": "^2.0.5",
+    "sinon": "^9.0.2"
+  },
+  "prettier": {
+    "tabWidth": 2,
+    "semi": false,
+    "singleQuote": true,
+    "printWidth": 100
+  },
+  "eslintConfig": {
+    "extends": [
+      "@kyeotic/eslint-config/node"
+    ]
+  },
+  "dependencies": {
+    "@nike/logger-wrapper": "^0.3.0",
+    "dynamo-butter": "^1.1.1"
+  }
+}
