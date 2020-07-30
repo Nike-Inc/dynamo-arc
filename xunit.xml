@@ -1,0 +1,79 @@
+<?xml version="1.0"?>
+<testsuites tests="25" name="Tap-Junit" failures="0" errors="0">
+  <testsuite tests="1" failures="0" errors="0" name="dynamo › makeClient requires valid config">
+    <testcase name="#1 dynamo › makeClient requires valid config"/>
+  </testsuite>
+  <testsuite tests="1" failures="0" errors="0" name="dynamo › makeClient returns valid client">
+    <testcase name="#2 dynamo › makeClient returns valid client"/>
+  </testsuite>
+  <testsuite tests="1" failures="0" errors="0" name="dynamo › BaseStore.typeKey joins type">
+    <testcase name="#3 dynamo › BaseStore.typeKey joins type"/>
+  </testsuite>
+  <testsuite tests="1" failures="0" errors="0" name="dynamo › BaseStore.getTableName returns tableName">
+    <testcase name="#4 dynamo › BaseStore.getTableName returns tableName"/>
+  </testsuite>
+  <testsuite tests="1" failures="0" errors="0" name="dynamo › BaseStore.asKey returns key object">
+    <testcase name="#5 dynamo › BaseStore.asKey returns key object"/>
+  </testsuite>
+  <testsuite tests="1" failures="0" errors="0" name="dynamo › BaseStore fromDb handles empty item">
+    <testcase name="#6 dynamo › BaseStore fromDb handles empty item"/>
+  </testsuite>
+  <testsuite tests="1" failures="0" errors="0" name="dynamo › BaseStore fromDb unwraps data">
+    <testcase name="#7 dynamo › BaseStore fromDb unwraps data"/>
+  </testsuite>
+  <testsuite tests="1" failures="0" errors="0" name="dynamo › BaseStore toDb wraps input">
+    <testcase name="#8 dynamo › BaseStore toDb wraps input"/>
+  </testsuite>
+  <testsuite tests="1" failures="0" errors="0" name="dynamo › BaseStore calls dynamo for get">
+    <testcase name="#9 dynamo › BaseStore calls dynamo for get"/>
+  </testsuite>
+  <testsuite tests="1" failures="0" errors="0" name="dynamo › BaseStore calls dynamo for put">
+    <testcase name="#10 dynamo › BaseStore calls dynamo for put"/>
+  </testsuite>
+  <testsuite tests="1" failures="0" errors="0" name="dynamo › BaseStore.getAll calls dynamo">
+    <testcase name="#11 dynamo › BaseStore.getAll calls dynamo"/>
+  </testsuite>
+  <testsuite tests="1" failures="0" errors="0" name="dynamo › BaseStore calls dynamo for delete">
+    <testcase name="#12 dynamo › BaseStore calls dynamo for delete"/>
+  </testsuite>
+  <testsuite tests="1" failures="0" errors="0" name="dynamo › BaseStore.forEachPage calls dynamo">
+    <testcase name="#13 dynamo › BaseStore.forEachPage calls dynamo"/>
+  </testsuite>
+  <testsuite tests="1" failures="0" errors="0" name="cache › cache.set should set data on dynamo">
+    <testcase name="#14 cache › cache.set should set data on dynamo"/>
+  </testsuite>
+  <testsuite tests="1" failures="0" errors="0" name="cache › cache.get should call dynamo first">
+    <testcase name="#15 cache › cache.get should call dynamo first"/>
+  </testsuite>
+  <testsuite tests="1" failures="0" errors="0" name="cache › cache.get should re-use when staleAfter is not met">
+    <testcase name="#16 cache › cache.get should re-use when staleAfter is not met"/>
+  </testsuite>
+  <testsuite tests="1" failures="0" errors="0" name="cache › cache.get should return stale if source throws and allowStale is true">
+    <testcase name="#17 cache › cache.get should return stale if source throws and allowStale is true"/>
+  </testsuite>
+  <testsuite tests="1" failures="0" errors="0" name="cache › cache.get should throw if source throws and allowStale is false">
+    <testcase name="#18 cache › cache.get should throw if source throws and allowStale is false"/>
+  </testsuite>
+  <testsuite tests="1" failures="0" errors="0" name="cache › cache.get should call source if dynamo returns empty">
+    <testcase name="#19 cache › cache.get should call source if dynamo returns empty"/>
+  </testsuite>
+  <testsuite tests="1" failures="0" errors="0" name="cache › cache.get should set data on dynamo after caching">
+    <testcase name="#20 cache › cache.get should set data on dynamo after caching"/>
+  </testsuite>
+  <testsuite tests="1" failures="0" errors="0" name="cache › cache.get should set ttl on dynamo after caching">
+    <testcase name="#21 cache › cache.get should set ttl on dynamo after caching"/>
+  </testsuite>
+  <testsuite tests="1" failures="0" errors="0" name="cache › cache.get should set to default ttl if none is given">
+    <testcase name="#22 cache › cache.get should set to default ttl if none is given"/>
+  </testsuite>
+  <testsuite tests="1" failures="0" errors="0" name="cache › cache.get should set ttl if given">
+    <testcase name="#23 cache › cache.get should set ttl if given"/>
+  </testsuite>
+  <testsuite tests="1" failures="0" errors="0" name="cache › cache.get should not set ttl if permanent">
+    <testcase name="#24 cache › cache.get should not set ttl if permanent"/>
+  </testsuite>
+  <testsuite tests="1" failures="0" errors="0" name="cache › cache.get should call source if staleAfter is met">
+    <testcase name="#25 cache › cache.get should call source if staleAfter is met"/>
+  </testsuite>
+</testsuites>
+

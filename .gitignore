@@ -63,3 +63,5 @@ typings/
 .vscode/
 .nyc_output
 coverage
+/junit.xml
+/report.txt
