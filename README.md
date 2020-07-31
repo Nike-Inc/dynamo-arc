@@ -1,4 +1,4 @@
-# @nike/dynamo-client
+# Dynamo Arc
 
 A dynamo data client designed for use with DyanmoDB Single Table applications.
 
