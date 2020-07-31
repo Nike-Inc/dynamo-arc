@@ -1,6 +1,6 @@
 'use strict'
 
-const loggerWrapper = require('@nike/logger-wrapper')
+const loggerWrapper = require('./loggerWrapper')
 
 const { asKey, _ttlField } = require('./dynamo')
 
