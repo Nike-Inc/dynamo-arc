@@ -35,10 +35,8 @@ function makeClient({
   if (!tableName) throw new Error('"tableConfig.tableName" is required')
 
   const client = Butter.up({
-    region: config.region,
     removeEmptyValues: true,
-    endpoint: config.endpoint,
-    useKeepAlive: config.useKeepAlive,
+    ...config,
   })
   client[_tableName] = tableName
   client[_typeIndex] = typeIndex
