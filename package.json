@@ -1,5 +1,5 @@
 {
-  "name": "@nike/dynamo-client",
+  "name": "dynamo-arc",
   "version": "0.2.2",
   "description": "dynamo data client with async-friendly API",
   "main": "src/index.js",
@@ -28,6 +28,10 @@
   ],
   "author": "Tim Kye",
   "license": "Apache-2.0",
+  "dependencies": {
+    "@nike/logger-wrapper": "^0.3.0",
+    "dynamo-butter": "^1.1.1"
+  },
   "devDependencies": {
     "@kyeotic/eslint-config": "^1.0.2",
     "ava": "^3.11.0",
@@ -48,9 +52,5 @@
     "extends": [
       "@kyeotic/eslint-config/node"
     ]
-  },
-  "dependencies": {
-    "@nike/logger-wrapper": "^0.3.0",
-    "dynamo-butter": "^1.1.1"
   }
 }
