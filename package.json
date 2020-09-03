@@ -14,7 +14,8 @@
     "test:coverage:open": "npm run test:coverage; npm run report:open",
     "report": "nyc report --reporter=html",
     "report:open": "npm run report && open coverage/index.html",
-    "test:ci": "npm run check && blue-tape test/**/**.spec.js | tap-xunit > xunit.xml && blue-tape test/**/**.int.js | tap-xunit > xunit.xml && npm run test:coverage && npm run report:ci"
+    "test:ci": "npm run check && blue-tape test/**/**.spec.js | tap-xunit > xunit.xml && blue-tape test/**/**.int.js | tap-xunit > xunit.xml && npm run test:coverage && npm run report:ci",
+    "release": "np"
   },
   "files": [
     "src/"
@@ -38,6 +39,7 @@
     "aws-sdk": "^2.722.0",
     "eslint": "^5.16.0",
     "nock": "^13.0.3",
+    "np": "^6.5.0",
     "nyc": "^15.1.0",
     "prettier": "^2.0.5",
     "sinon": "^9.0.2"
