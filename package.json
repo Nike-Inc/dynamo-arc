@@ -1,6 +1,6 @@
 {
   "name": "dynamo-arc",
-  "version": "0.2.2",
+  "version": "1.0.0",
   "description": "dynamo data client with async-friendly API",
   "main": "src/index.js",
   "scripts": {
