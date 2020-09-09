@@ -4,7 +4,9 @@ const test = require('ava')
 const sinon = require('sinon')
 const { stub } = sinon
 const { Cache, defaultCacheTtl } = require('../src/cache')
-const { _ttlField } = require('../src/dynamo')
+const {
+  clientSymbols: { _ttlField },
+} = require('../src/dynamo')
 
 const createMetrics = () => ({ cacheHit: stub(), cacheMiss: stub() })
 const testClient = () => ({

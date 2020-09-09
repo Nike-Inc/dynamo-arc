@@ -2,7 +2,10 @@
 
 const loggerWrapper = require('./loggerWrapper')
 
-const { asKey, _ttlField } = require('./dynamo')
+const {
+  asKey,
+  clientSymbols: { _ttlField },
+} = require('./dynamo')
 
 const defaultCacheTtl = 300000
 const delimiter = ':'

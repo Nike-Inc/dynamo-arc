@@ -369,4 +369,19 @@ module.exports = {
   asKey,
   _dynamo,
   _ttlField,
+  clientSymbols: {
+    _tableName,
+    _typeIndex,
+    _idField,
+    _sortField,
+    _ttlField,
+  },
+  storeSymbols: {
+    _type,
+    _dynamo,
+    _logger,
+    _idKey,
+    _sortKey,
+    _delimiter,
+  },
 }
