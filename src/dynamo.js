@@ -65,8 +65,12 @@ class BaseStore {
     return this[_dynamo].getTableName()
   }
 
+  join(...idParts) {
+    return idParts.join(this[_delimiter])
+  }
+
   typeKey(...id) {
-    return [this[_type], ...id].join(this[_delimiter])
+    return this.join(this[_type], ...id)
   }
 
   asKey(id, sortKey) {
