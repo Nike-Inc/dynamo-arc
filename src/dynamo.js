@@ -20,6 +20,7 @@ const _delimiter = Symbol('_delimiter')
 
 function makeClient({
   dynamoConfig: config,
+  butterConfig,
   tableConfig: {
     tableName,
     idField = 'id',
@@ -34,10 +35,13 @@ function makeClient({
   if (!config.region) throw new Error('"dynamoConfig.region" is required')
   if (!tableName) throw new Error('"tableConfig.tableName" is required')
 
-  const client = Butter.up({
-    removeEmptyValues: true,
-    ...config,
-  })
+  const client = Butter.up(
+    {
+      removeEmptyValues: true,
+      ...config,
+    },
+    butterConfig
+  )
   client[_tableName] = tableName
   client[_typeIndex] = typeIndex
   client[_idField] = idField

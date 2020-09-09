@@ -60,6 +60,7 @@ The configuration for all exported functions/classes can be found below.
 ```typescript
 function makeClient({
   dynamoConfig: DynamoButterConfig,
+  butterConfig: ButterConfig,
   tableConfig: {
     tableName: string,
     idField = 'id', // partition key of the table
@@ -72,7 +73,7 @@ function makeClient({
 })
 ```
 
-The configuration for the *dynamo client's* `dynamoConfig` is passed to [Dynamo Butter](https://github.com/Nike-Inc/dynamo-butter) using the [Configuration-Passthrough Mode](https://github.com/Nike-Inc/dynamo-butter#configuration-passthrough-mode). Use the same values you would use for the *DynamoDB DocumentClient*.
+The configuration for the *dynamo client's* `dynamoConfig` is passed to [Dynamo Butter](https://github.com/Nike-Inc/dynamo-butter) using the [Configuration-Passthrough Mode](https://github.com/Nike-Inc/dynamo-butter#configuration-passthrough-mode). Use the same values you would use for the *DynamoDB DocumentClient*. The optional `butterConfig` prop can be used to control the second config parameter to Dynamo Butter; this is most useful for disabling keep alive.
 
 The only required property for the `tableConfig` is the `tableName`, which is the full name of the Dynamo table. The other fields are optional with default values.
 
