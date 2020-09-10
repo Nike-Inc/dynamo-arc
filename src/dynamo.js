@@ -81,7 +81,7 @@ class BaseStore {
   }
 
   /**
-   * Create the ID field of this type
+   * Create the ID field of this type by joining it to the store's configured TYPE
    * @param {string[]} ids N-ary id segments to convert into an ID key
    * @return {*}
    * @memberof BaseStore

@@ -119,6 +119,223 @@ class RecordStore extends BaseStore {
   }
 ```
 
+## API
+
+```typescript
+interface StoreKey {
+    // The properties on a Store's Key are determined
+    // by its configuration.
+    // It will have an idKey, and optionally a sortKey
+    [key: string]: string
+}
+
+// Raw Item from Dynamo
+interface DynamoRecord {}
+
+// Stand in for the normal DocumentClient params for the given function
+// The TableName property is automatically filled in by Arc
+interface DynamoParams {}
+
+// Stand in for the normal DocumentClient result for the given function
+interface DynamoResult {}
+
+interface BaseStore<T> {
+  getTableName(): string
+  
+  /**
+   * Join id segments together with the configured delimiter
+   */
+  join(...idSegments: string[]): string
+  
+  /**
+   * Create the ID field of this type by joining it to the store's configured TYPE
+   * @memberof BaseStore
+   */
+  typeKey(...idSegments: string[]): string
+  
+  /**
+   * Creates the Key object used by dynamo. Includes a sort key if configured on this store
+   */
+  asKey(id:string, sortKey?: string): StoreKey
+  
+  /**
+   * Convert the DynamoDB record back into the originally stored JS object
+   */
+  fromDb(item: DynamoRecord): T
+
+  /**
+   * Convert a plain JS object into a DynamoDB record
+   */
+  toDb(item: T): DynamoRecord
+
+  /**
+   * Get a keyed item from Dynamo
+   */
+  get(id:string, sortKey?:string): Promise<T>
+
+  /**
+   * Delete the item from Dynamo matching the provided key
+   */
+  delete(id:string, sortKey:string): Promise<void>
+
+  /**
+   * Create or Update the item in Dynamo
+   */
+  put(item: T): Promise<T>
+
+  /**
+   * Execute a query against the configured Dynamo table
+   */
+  query(params: DynamoParams): Promise<DynamoResult>
+  
+  /**
+   * Execute a scan against the configured Dynamo table
+   */
+  scan(params: DynamoParams): Promise<DynamoResult>
+
+  /**
+   * Execute a batchGet against the configured Dynamo table
+   */
+  batchGet(keys: StoreKey[]): Promise<DynamoResult>
+
+  /**
+   * Execute a batchWrite against the configured Dynamo table
+   */
+  batchWrite(changes: (StoreKey | T)): Promise<DynamoResult>
+
+  /**
+   * Execute a query against the configured Dynamo table
+   * with automatic paging, mapped through fromDb()
+   */
+  query(params: DynamoParams): Promise<T[]>
+  
+  /**
+   * Execute a scan against the configured Dynamo table
+   * with automatic paging, mapped through fromDb()
+   */
+  scan(params: DynamoParams): Promise<T[]>
+
+  /**
+   * Execute a batchGet against the configured Dynamo table
+   * with automatic paging, mapped through fromDb()
+   */
+  batchGet(keys: StoreKey[]): Promise<T[]>
+
+  /**
+   * Execute a batchWrite against the configured Dynamo table
+   * with automatic paging
+   */
+  batchWrite(changes: (StoreKey | T)): Promise<DynamoResult>
+}
+```
+
 ## Cache
 
-Coming Soon
+The cache takes a `dynamo` object and returns a store that uses dynamo as a caching layer by handling various `ttl` values.
+
+
+### Setup
+```javascript 
+const { Cache } = require('dynamo-arc')
+return new Cache({ dynamo: dynamo })
+const getter = () => cache.get(
+  'some-id',
+  () => someExpensiveOp(),
+  { staleAfter: 10000 }
+)
+const freshValue = await getter()
+const cachedValue = await getter()
+```
+
+### API
+
+```typescript
+interface CacheOptions {
+    permanent?: boolean
+    ttl?: number
+    staleAfter?: number
+}
+
+interface CacheKey extends CacheOptions {
+    id: string
+}
+
+interface Cache {
+  get<T>(key: string, cacheMissFn: () => Promise<T>, options?: CacheOptions): Promise<T>
+  set<T>(key: string, value: T, options?: CacheOptions): Promise<T>
+  // This takes an array of object with an ID and CacheOptions
+  // It will return the first object from the cache whose ID matches one in the array
+  // Or it will call the cacheMissFn and write the result to every ID in the array
+  batchGet<T>(keys: CacheKey[], cacheMissFn: () => Promise<T>): Promise<T>
+}
+```
+
+## fromDb()/toDb()
+
+Working with a single table means overloading the schema. Since every type is using well-known properties for `id` and `sort_key` and the various GSIs the rest of the data needs to go into a collision resistant property: `data`. When writing an object with `put` the object is sent to dynamo after casting through `toDb(item).
+
+```javascript
+toDb(item) {
+  let id = item[this[_idKey]]
+  let data = { ...item }
+
+  const dbItem = {
+    ...this.asKey(id, item[this[_sortKey]]),
+    type: this[_type],
+    // This is to make it easier to find in the dynamo console
+    typeId: id,
+    // datetime props
+    createdOn: item.createdOn,
+    updatedOn: Date.now(),
+    //
+    data, // <--- where the actual object is stored!!
+    //
+  }
+
+  return dbItem
+}
+```
+
+When reading with `get`, `queryAll`, `scanAll`, or `batchGetAll` the raw response from dynamo needs to have the `data` property unpacked. Extraction is much simpler, so this is the entire default `fromDb(item)` function.
+
+```javascript
+fromDb(item) {
+  if (!item || !item.data) return null
+  item = item.data
+  return item
+}
+```
+
+Both of these functions are defined on the `BaseStore`, so they can be overriden as necessary. The most common use case for this is overriding `toDb` in order to add GSI indexing properties
+
+```javascript
+// Class Method on an "extends BaseStore" class
+toDb(item) {
+  return {
+    ...super.toDb(item),
+    // custom owner index
+    gsi1_key: this.typeKey(item.ownerId), 
+    gsi1_sort: item.id
+  }
+}
+```
+
+> Note: because the `query`, `scan`, `batchWrite` and `batchGet` methods do not automatically page they return the raw dynamo response so that the caller can access the paging properties. This means their responses **are not run through `fromDb()` first!**
+
+## Querying GSIs
+
+Getting data out of a GSI is easy as long as the GSI key uses the `this.typeKey()` as seen above, which ensure the store's configured *type* is combined with the intended ID. Doing the same on the query filters the query so that only records of the correct type are read from the GSI, despite the Single Table's GSI containing records of many types
+
+```javascript
+// Class Method on an "extends BaseStore" class
+async getByOwnerId(ownerId) {
+  return this.queryAll({
+    IndexName: 'gsi1-index',
+    ScanIndexForward: false,
+    KeyConditionExpression: '#ownerId = :ownerId',
+    ExpressionAttributeNames: { '#ownerId': 'gsi1_key' },
+    ExpressionAttributeValues: { ':ownerId': this.typeKey(item.ownerId) }
+  })
+}
+```
+

@@ -27,6 +27,14 @@ class Cache {
     return asKey(this[_dynamo], asDynamoKey(id))
   }
 
+  /**
+   * Get a value from the cache, or get it from the cacheMissFn and store it in the cache if
+   * It is missing or expired
+   * @param {*} key
+   * @param {*} cacheMissFn
+   * @return {*}
+   * @memberof Cache
+   */
   async get(key, cacheMissFn, options = {}) {
     const ttlField = this[_dynamo][_ttlField]
     let cacheResult = await this[_dynamo]
@@ -60,6 +68,13 @@ class Cache {
     return fnResult
   }
 
+  /**
+   * Set a value in the cache
+   * @param {*} key
+   * @param {*} value
+   * @return {*}
+   * @memberof Cache
+   */
   async set(key, value, options = {}) {
     const ttlField = this[_dynamo][_ttlField]
     return this[_dynamo].put({
@@ -77,8 +92,9 @@ class Cache {
   }
 
   /**
-   *
-   *
+   * This takes an array of object with an ID and CacheOptions
+   * It will return the first object from the cache whose ID matches one in the array
+   * Or it will call the cacheMissFn and write the result to every ID in the array
    * @param {*} keys will prioritize the first key that matches in the array
    * @param {*} cacheMissFn
    * @returns
