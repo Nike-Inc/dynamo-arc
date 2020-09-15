@@ -235,7 +235,7 @@ interface Cache {
 
 ## fromDb()/toDb()
 
-Working with a single table means overloading the schema. Since every type is using well-known properties for `id` and `sort_key` and the various GSIs the rest of the data needs to go into a collision resistant property: `data`. When writing an object with `put` the object is sent to dynamo after casting through `toDb(item).
+Working with a single table means overloading the schema. Since every type is using well-known properties for `id` and `sort_key` and the various GSIs the rest of the data needs to go into a collision resistant property: `data`. When writing an object with `put` the object is sent to dynamo after casting through `toDb(item)`.
 
 ```javascript
 toDb(item) {
