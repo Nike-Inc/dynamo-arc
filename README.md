@@ -179,16 +179,16 @@ interface BaseStore<T> {
   batchWrite(changes: (StoreKey | T)): Promise<DynamoResult>
 
   /** Execute a query against the configured Dynamo table with automatic paging, mapped through fromDb() */
-  query(params: DynamoParams): Promise<T[]>
+  queryAll(params: DynamoParams): Promise<T[]>
   
   /** Execute a scan against the configured Dynamo table with automatic paging, mapped through fromDb() */
-  scan(params: DynamoParams): Promise<T[]>
+  scanAll(params: DynamoParams): Promise<T[]>
 
   /** Execute a batchGet against the configured Dynamo table with automatic paging, mapped through fromDb() */
-  batchGet(keys: StoreKey[]): Promise<T[]>
+  batchGetAll(keys: StoreKey[]): Promise<T[]>
 
   /** Execute a batchWrite against the configured Dynamo table with automatic paging */
-  batchWrite(changes: (StoreKey | T)): Promise<DynamoResult>
+  batchWriteAll(changes: (StoreKey | T)): Promise<DynamoResult>
 }
 ```
 
