@@ -142,89 +142,52 @@ interface DynamoResult {}
 interface BaseStore<T> {
   getTableName(): string
   
-  /**
-   * Join id segments together with the configured delimiter
-   */
+  /** Join id segments together with the configured delimiter */
   join(...idSegments: string[]): string
   
-  /**
-   * Create the ID field of this type by joining it to the store's configured TYPE
-   * @memberof BaseStore
-   */
+  /** Create the ID field of this type by joining it to the store's configured TYPE  */
   typeKey(...idSegments: string[]): string
   
-  /**
-   * Creates the Key object used by dynamo. Includes a sort key if configured on this store
-   */
+  /** Creates the Key object used by dynamo. Includes a sort key if configured on this store */
   asKey(id:string, sortKey?: string): StoreKey
   
-  /**
-   * Convert the DynamoDB record back into the originally stored JS object
-   */
+  /** Convert the DynamoDB record back into the originally stored JS object */
   fromDb(item: DynamoRecord): T
 
-  /**
-   * Convert a plain JS object into a DynamoDB record
-   */
+  /** Convert a plain JS object into a DynamoDB record */
   toDb(item: T): DynamoRecord
 
-  /**
-   * Get a keyed item from Dynamo
-   */
+  /** Get a keyed item from Dynamo */
   get(id:string, sortKey?:string): Promise<T>
 
-  /**
-   * Delete the item from Dynamo matching the provided key
-   */
+  /** Delete the item from Dynamo matching the provided key */
   delete(id:string, sortKey:string): Promise<void>
 
-  /**
-   * Create or Update the item in Dynamo
-   */
+  /** Create or Update the item in Dynamo */
   put(item: T): Promise<T>
 
-  /**
-   * Execute a query against the configured Dynamo table
-   */
+  /** Execute a query against the configured Dynamo table */
   query(params: DynamoParams): Promise<DynamoResult>
   
-  /**
-   * Execute a scan against the configured Dynamo table
-   */
+  /** Execute a scan against the configured Dynamo table */
   scan(params: DynamoParams): Promise<DynamoResult>
 
-  /**
-   * Execute a batchGet against the configured Dynamo table
-   */
+  /** Execute a batchGet against the configured Dynamo table */
   batchGet(keys: StoreKey[]): Promise<DynamoResult>
 
-  /**
-   * Execute a batchWrite against the configured Dynamo table
-   */
+  /** Execute a batchWrite against the configured Dynamo table */
   batchWrite(changes: (StoreKey | T)): Promise<DynamoResult>
 
-  /**
-   * Execute a query against the configured Dynamo table
-   * with automatic paging, mapped through fromDb()
-   */
+  /** Execute a query against the configured Dynamo table with automatic paging, mapped through fromDb() */
   query(params: DynamoParams): Promise<T[]>
   
-  /**
-   * Execute a scan against the configured Dynamo table
-   * with automatic paging, mapped through fromDb()
-   */
+  /** Execute a scan against the configured Dynamo table with automatic paging, mapped through fromDb() */
   scan(params: DynamoParams): Promise<T[]>
 
-  /**
-   * Execute a batchGet against the configured Dynamo table
-   * with automatic paging, mapped through fromDb()
-   */
+  /** Execute a batchGet against the configured Dynamo table with automatic paging, mapped through fromDb() */
   batchGet(keys: StoreKey[]): Promise<T[]>
 
-  /**
-   * Execute a batchWrite against the configured Dynamo table
-   * with automatic paging
-   */
+  /** Execute a batchWrite against the configured Dynamo table with automatic paging */
   batchWrite(changes: (StoreKey | T)): Promise<DynamoResult>
 }
 ```
