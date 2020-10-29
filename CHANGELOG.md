@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [1.3.2] - 2020-10-29
+## Fixed
+- handle empty array for `batchWrite`, `batchGet`, `batchWriteAll` and `batchGetAll`
+
 ## [1.3.1] - 2020-09-09
 ## Added
 - fixed missing exports for `clientSymbols` and `storeSymbols`

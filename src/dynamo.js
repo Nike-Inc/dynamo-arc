@@ -212,6 +212,8 @@ class BaseStore {
    * @memberof BaseStore
    */
   async batchGet(keys) {
+    if (!keys || !Array.isArray(keys)) throw new Error('"keys" parameter must be an array')
+    if (!keys.length) return []
     return this[_dynamo].batchGet({
       RequestItems: {
         [this.getTableName()]: {
@@ -228,6 +230,8 @@ class BaseStore {
    * @memberof BaseStore
    */
   async batchWrite(changes) {
+    if (!changes || !Array.isArray(changes)) throw new Error('"changes" parameter must be an array')
+    if (!changes.length) return []
     return this[_dynamo].batchWrite({
       RequestItems: {
         [this.getTableName()]: changes,
@@ -276,6 +280,8 @@ class BaseStore {
    * @memberof BaseStore
    */
   async batchGetAll(keys) {
+    if (!keys || !Array.isArray(keys)) throw new Error('"keys" parameter must be an array')
+    if (!keys.length) return []
     const response = await this[_dynamo].batchGetAll({
       RequestItems: {
         [this.getTableName()]: {
@@ -294,6 +300,8 @@ class BaseStore {
    * @memberof BaseStore
    */
   async batchWriteAll(changes) {
+    if (!changes || !Array.isArray(changes)) throw new Error('"changes" parameter must be an array')
+    if (!changes.length) return []
     return this[_dynamo].batchWriteAll({
       RequestItems: {
         [this.getTableName()]: changes,

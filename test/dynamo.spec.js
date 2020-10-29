@@ -266,6 +266,15 @@ test('BaseStore.batchGetAll calls dynamo', async (t) => {
   t.deepEqual(dynamo.batchGetAll.firstCall.args[0], expected, 'params')
 })
 
+test('BaseStore.batchGetAll returns early when given empty array', async (t) => {
+  let dynamo = testClient()
+  dynamo.batchGetAll = stub().rejects(new Error('should have avoided call'))
+  let store = new BaseStore({ dynamo, type: 'test' })
+  let result = await store.batchGetAll([])
+  t.deepEqual(result, [], 'returned empty array')
+  t.falsy(dynamo.batchGetAll.called, 'called')
+})
+
 test('BaseStore.batchWriteAll calls dynamo', async (t) => {
   let dynamo = testClient()
   dynamo.batchWriteAll = stub().resolves({ Items: [] })
@@ -279,6 +288,15 @@ test('BaseStore.batchWriteAll calls dynamo', async (t) => {
   }
   t.truthy(dynamo.batchWriteAll.called, 'called')
   t.deepEqual(dynamo.batchWriteAll.firstCall.args[0], expected, 'params')
+})
+
+test('BaseStore.batchWriteAll returns early when given empty array', async (t) => {
+  let dynamo = testClient()
+  dynamo.batchWriteAll = stub().rejects(new Error('should have avoided call'))
+  let store = new BaseStore({ dynamo, type: 'test' })
+  let result = await store.batchWriteAll([])
+  t.deepEqual(result, [], 'returned empty array')
+  t.falsy(dynamo.batchWriteAll.called, 'called')
 })
 
 test('BaseStore.getAll calls dynamo', async (t) => {
