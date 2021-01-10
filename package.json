@@ -30,7 +30,6 @@
   "author": "Tim Kye",
   "license": "Apache-2.0",
   "dependencies": {
-    "@nike/logger-wrapper": "^0.3.0",
     "dynamo-butter": "^1.1.1"
   },
   "devDependencies": {
