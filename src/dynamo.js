@@ -94,11 +94,21 @@ class BaseStore {
    * Creates the Key object used by dynamo. Includes a sort key if configured on this store
    * @param {string} id primary key value
    * @param {string} sortKey sort key value
-   * @return {*} Key object with properties matching the idKey and sortKey confiuration
+   * @return {*} Key object with properties matching the idKey and sortKey configuration
    * @memberof BaseStore
    */
   asKey(id, sortKey) {
     return asKey(this[_dynamo], this.typeKey(id), sortKey)
+  }
+
+  /**
+   * Returns the Key object used by dynamo by extracting it from a the JS item object. Useful for building batch lists
+   * @param {*} item original plan JS object
+   * @return {*} Key object with properties matching the idKey and sortKey configuration
+   * @memberof BaseStore
+   */
+  getKey(item) {
+    return asKey(this[_dynamo], item[this[_idKey]], item[this[_sortKey]])
   }
 
   /**
