@@ -103,6 +103,19 @@ test('cache.get should set ttl if given', async (t) => {
   t.truthy(dynamo.put.getCall(0).args[0].Item.ttl > (Date.now() - 2000) / 1000, 'set ttl')
 })
 
+test('cache.get should set ttl if given clearAfter', async (t) => {
+  let dynamo = testClient()
+  dynamo.get = stub().rejects(new Error('resource not found'))
+  dynamo.put = stub().resolves(1)
+  let cacheFn = stub().resolves(1)
+  let cache = new Cache({
+    dynamo,
+    metrics: createMetrics(),
+  })
+  await cache.get('test', cacheFn, { clearAfter: 100 })
+  t.truthy(dynamo.put.getCall(0).args[0].Item.ttl > (Date.now() - 2000) / 1000, 'set ttl')
+})
+
 test('cache.get should not set ttl if permanent', async (t) => {
   let dynamo = testClient()
   dynamo.get = stub().rejects(new Error('resource not found'))
@@ -194,4 +207,15 @@ test('cache.set should set data on dynamo', async (t) => {
   t.is(result, 1, 'returned cache result')
   t.is(dynamo.put.callCount, 1, 'called dynamo put')
   t.is(dynamo.put.getCall(0).args[0].Item.data, 1, 'set data')
+})
+
+test('cache.clear should clear cache', async (t) => {
+  let dynamo = testClient()
+  dynamo.delete = stub().resolves()
+  let cache = new Cache({
+    dynamo,
+    metrics: createMetrics(),
+  })
+  await cache.clear('test')
+  t.is(dynamo.delete.callCount, 1, 'called dynamo')
 })

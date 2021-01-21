@@ -32,10 +32,16 @@ class Cache {
    * It is missing or expired
    * @param {*} key
    * @param {*} cacheMissFn
+   * @param {Object} options
+   * @param {number} options.ttl the datetime value that the object should expire at (e.g. `Date.now() + 1000` = 1 second in the future)
+   * @param {number} options.clearAfter will be used to set the ttl with `Date.now() + clearAfter`, useful in setting a static options obejct. Mutually exclusive with `options.ttl`
+   * @param {number} options.staleAfter number of milliseconds after which the item is "stale" and will be refresh with the `cacheMissFn`
+   * @param {boolean} options.allowStale if the `cacheMissFn` throws and `allowStale` is truthy then the stale item will be returned
    * @return {*}
    * @memberof Cache
    */
   async get(key, cacheMissFn, options = {}) {
+    validateOptions(options)
     const ttlField = this[_dynamo][_ttlField]
     let cacheResult = await this[_dynamo]
       .get({
@@ -88,6 +94,19 @@ class Cache {
         // Seconds (Dynamo requires seconds)
         [ttlField]: getTtl(options),
       },
+    })
+  }
+
+  /**
+   * Remove a value from the cache
+   * @param {*} key
+   * @return {Promise<void>}
+   * @memberof Cache
+   */
+  async clear(key) {
+    await this[_dynamo].delete({
+      TableName: this[_dynamo].getTableName(),
+      Key: this.asKey(key),
     })
   }
 
@@ -163,6 +182,7 @@ function getTtl(options) {
   if (options.permanent) return undefined
   let ttl
   if (options.ttl) ttl = options.ttl
+  else if (options.clearAfter) ttl = Date.now() + options.clearAfter
   else ttl = Date.now() + defaultCacheTtl
   // Dynamo needs ttl in seconds
   return Math.floor(ttl / 1000)
@@ -175,4 +195,10 @@ function metricsWrapper(metrics, logger) {
       cacheMiss: (key) => logger.debug(`cache miss: ${key}`),
     }
   )
+}
+
+function validateOptions(options) {
+  if (!options) return
+  if (options.ttl && options.clearAfter)
+    throw new Error('cache options "ttl" and "clearAfter" are mutually exclusive')
 }
