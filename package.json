@@ -2,7 +2,8 @@
   "name": "dynamo-arc",
   "version": "1.5.0",
   "description": "dynamo data client with async-friendly API",
-  "main": "src/index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "style": "prettier --config package.json  --write \"{src,test}/**/*.js\"",
     "lint": "eslint -c package.json \"{src,test}/**/*.js\"",
@@ -18,7 +19,7 @@
     "release": "np"
   },
   "files": [
-    "src/"
+    "dist/"
   ],
   "repository": {
     "type": "git",
@@ -41,7 +42,8 @@
     "np": "^6.5.0",
     "nyc": "^15.1.0",
     "prettier": "^2.0.5",
-    "sinon": "^9.0.2"
+    "sinon": "^9.0.2",
+    "typescript": "^4.1.5"
   },
   "prettier": {
     "tabWidth": 2,

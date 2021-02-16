@@ -63,3 +63,4 @@ typings/
 .vscode/
 .nyc_output
 coverage
+dist/
