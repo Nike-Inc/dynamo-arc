@@ -60,14 +60,14 @@ test('BaseStore.asKey returns key object', (t) => {
 test('BaseStore.getKey returns key object', (t) => {
   let dynamo = testClient()
   let store = new BaseStore({ dynamo, type: 'test' })
-  t.deepEqual(store.getKey({ id: 'test:1' }), { id: 'test:1', sort_key: '_' }, 'key with sort')
+  t.deepEqual(store.getKey({ id: '1' }), { id: 'test:1', sort_key: '_' }, 'key with sort')
   t.deepEqual(
-    store.getKey({ id: 'test:1', extra: 'removed' }),
+    store.getKey({ id: '1', extra: 'removed' }),
     { id: 'test:1', sort_key: '_' },
     'key with sort'
   )
   t.deepEqual(
-    store.getKey({ id: 'test:1', sort_key: '2' }),
+    store.getKey({ id: '1', sort_key: '2' }),
     { id: 'test:1', sort_key: '_' },
     'key with custom sort'
   )
@@ -79,14 +79,14 @@ test('BaseStore.getKey returns key object', (t) => {
 test('BaseStore.getKey returns key object with custom sort', (t) => {
   let dynamo = testClient()
   let store = new BaseStore({ dynamo, type: 'test', sortKey: 'name' })
-  t.deepEqual(store.getKey({ id: 'test:1' }), { id: 'test:1', sort_key: '_' }, 'key with sort')
+  t.deepEqual(store.getKey({ id: '1' }), { id: 'test:1', sort_key: '_' }, 'key with sort')
   t.deepEqual(
-    store.getKey({ id: 'test:1', extra: 'removed' }),
+    store.getKey({ id: '1', extra: 'removed' }),
     { id: 'test:1', sort_key: '_' },
     'key with sort'
   )
   t.deepEqual(
-    store.getKey({ id: 'test:1', name: '2' }),
+    store.getKey({ id: '1', name: '2' }),
     { id: 'test:1', sort_key: '2' },
     'key with custom sort'
   )
