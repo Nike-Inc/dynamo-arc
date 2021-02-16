@@ -108,7 +108,7 @@ class BaseStore {
    * @memberof BaseStore
    */
   getKey(item) {
-    return asKey(this[_dynamo], item[this[_idKey]], item[this[_sortKey]])
+    return asKey(this[_dynamo], this.typeKey(item[this[_idKey]]), item[this[_sortKey]])
   }
 
   /**
