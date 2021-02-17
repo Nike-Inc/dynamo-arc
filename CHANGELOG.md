@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
+## [2.0.0] - Unreleased
+## Changed
+- Typescript re-write using Dynamo-Butter v2
+## Added
+- `clientSymbols` and `storeSymbols` properties are now also available as top-level exports to support Typescript's `unique symbol` requirements
+- `putAll` and `deleteAll`
+
 ## [1.5.1] - 2021-01-21
 ## Fixed
 - `BaseStore.getKey()` not adding `typeKey` to the ID field
