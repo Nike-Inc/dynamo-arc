@@ -1,9 +1,12 @@
+/* eslint-disable @typescript-eslint/no-var-requires */
 'use strict'
+
+const { describe, expect, it } = require('@jest/globals')
 
 const test = require('ava')
 const sinon = require('sinon')
 const { stub } = sinon
-const { makeClient, BaseStore } = require('../src/dynamo')
+const { makeClient, BaseStore } = require('../dynamo')
 
 const testClient = (config) =>
   makeClient({

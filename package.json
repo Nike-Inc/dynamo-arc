@@ -2,24 +2,22 @@
   "name": "dynamo-arc",
   "version": "1.5.1",
   "description": "dynamo data client with async-friendly API",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
   "scripts": {
-    "style": "prettier --config package.json  --write \"{src,test}/**/*.js\"",
-    "lint": "eslint -c package.json \"{src,test}/**/*.js\"",
+    "style": "prettier --config package.json  --write \"{src,test}/**/*.ts\"",
+    "build": "rollup -c",
+    "lint": "eslint 'src/**/*.{js,ts,tsx}' --quiet --fix",
     "check": "npm run style && npm run lint",
     "test": "npm run check && npm run test:unit",
-    "test:unit": "ava",
-    "test:watch": "ava --watch",
-    "test:coverage": "nyc --check-coverage --lines 80 ava",
-    "test:coverage:open": "npm run test:coverage; npm run report:open",
-    "report": "nyc report --reporter=html",
-    "report:open": "npm run report && open coverage/index.html",
-    "test:ci": "npm run check && blue-tape test/**/**.spec.js | tap-xunit > xunit.xml && blue-tape test/**/**.int.js | tap-xunit > xunit.xml && npm run test:coverage && npm run report:ci",
+    "test:unit": "jest",
+    "test:watch": "jest --watch",
+    "test:ci": "npm run test",
+    "test:coverage": "jest && open coverage/index.html",
     "release": "np"
   },
+  "main": "lib/main.js",
+  "types": "lib/main.d.ts",
   "files": [
-    "dist/"
+    "lib/"
   ],
   "repository": {
     "type": "git",
@@ -30,30 +28,25 @@
   ],
   "author": "Tim Kye",
   "license": "Apache-2.0",
-  "dependencies": {
-    "dynamo-butter": "^1.1.1"
-  },
   "devDependencies": {
-    "@kyeotic/eslint-config": "^1.0.2",
-    "ava": "^3.11.0",
-    "aws-sdk": "^2.722.0",
-    "eslint": "^5.16.0",
+    "@rollup/plugin-typescript": "^8.2.0",
+    "@types/jest": "^26.0.20",
+    "@typescript-eslint/eslint-plugin": "^4.15.1",
+    "@typescript-eslint/parser": "^4.15.1",
+    "eslint": "^7.20.0",
+    "eslint-config-prettier": "^7.2.0",
+    "eslint-plugin-prettier": "^3.3.1",
+    "jest": "^26.6.3",
     "nock": "^13.0.3",
     "np": "^6.5.0",
-    "nyc": "^15.1.0",
-    "prettier": "^2.0.5",
+    "prettier": "^2.2.1",
+    "rollup": "^2.39.0",
     "sinon": "^9.0.2",
+    "ts-jest": "^26.5.1",
+    "tslib": "^1.13.0",
     "typescript": "^4.1.5"
   },
-  "prettier": {
-    "tabWidth": 2,
-    "semi": false,
-    "singleQuote": true,
-    "printWidth": 100
-  },
-  "eslintConfig": {
-    "extends": [
-      "@kyeotic/eslint-config/node"
-    ]
+  "dependencies": {
+    "dynamo-butter": "^2.0.0-0"
   }
 }

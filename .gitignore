@@ -64,3 +64,4 @@ typings/
 .nyc_output
 coverage
 dist/
+lib/

@@ -1,11 +1,17 @@
 {
   "compilerOptions": {
-    "lib": ["es2018"],
-    "module": "commonjs",
-    "target": "es2018",
+    "lib": ["es2019", "dom"],
+    "module": "esnext",
+    "target": "es2019",
     "declaration": true,
     "strict": true,
-    "outDir": "./dist"
+    "outDir": "lib",
+    "noUnusedLocals": true,
+    "rootDir": "src",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "preserveSymlinks": true,
+    "strictPropertyInitialization": true
   },
   "include": [
     "src/**/*"
