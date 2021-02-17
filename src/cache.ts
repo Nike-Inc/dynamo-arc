@@ -131,7 +131,9 @@ export class Cache {
     this[_logger].debug('batchGet - checking cache')
 
     // Create the params for dynamo batchGet
-    const RequestItems = { [this[_dynamo].getTableName()]: { Keys: cacheKeys } }
+    const RequestItems = {
+      [this[_dynamo].getTableName()]: { Keys: cacheKeys },
+    }
     const cacheResult = await this[_dynamo]
       .batchGet({ RequestItems })
       .then((r) => r.Responses?.[this[_dynamo].getTableName()] || [])

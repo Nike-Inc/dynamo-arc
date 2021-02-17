@@ -3,7 +3,7 @@
   "version": "1.5.1",
   "description": "dynamo data client with async-friendly API",
   "scripts": {
-    "style": "prettier --config package.json  --write \"{src,test}/**/*.ts\"",
+    "style": "prettier --write \"{src,test}/**/*.ts\"",
     "build": "rollup -c",
     "lint": "eslint 'src/**/*.{js,ts,tsx}' --quiet --fix",
     "check": "npm run style && npm run lint",
@@ -12,7 +12,7 @@
     "test:watch": "jest --watch",
     "test:ci": "npm run test",
     "test:coverage": "jest && open coverage/index.html",
-    "release": "np"
+    "release": "npm run build && np"
   },
   "main": "lib/main.js",
   "types": "lib/main.d.ts",

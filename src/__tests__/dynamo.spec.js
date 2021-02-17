@@ -3,7 +3,6 @@
 
 const { describe, expect, it } = require('@jest/globals')
 
-const test = require('ava')
 const sinon = require('sinon')
 const { stub } = sinon
 const { makeClient, BaseStore } = require('../dynamo')
@@ -14,117 +13,96 @@ const testClient = (config) =>
     tableConfig: { tableName: 'test-table', ...config },
   })
 
-test('makeClient requires valid config', (t) => {
-  t.throws(() => makeClient(), { message: /destructure.+?dynamoConfig/ }, 'requires config')
-  t.throws(
-    () => makeClient({ tableConfig: {} }),
-    { message: /dynamoConfig.+?required/ },
-    'requires dynamoConfig'
-  )
-  t.throws(
-    () => makeClient({ dynamoConfig: {}, tableConfig: {} }),
-    { message: /region.+?required/ },
-    'requires region'
-  )
-  t.throws(
-    () => makeClient({ dynamoConfig: { region: 'us-west-2' }, tableConfig: {} }),
-    { message: /tableConfig\.tableName.+?required/ },
-    'requires tableName'
-  )
+describe('makeClient', () => {
+  it('requires valid config', () => {
+    expect(() => makeClient()).toThrowError(/destructure.+?dynamoConfig/)
+    expect(() => makeClient({ tableConfig: {} })).toThrowError(/dynamoConfig.+?required/)
+    expect(() => makeClient({ dynamoConfig: {}, tableConfig: {} })).toThrowError(
+      /region.+?required/
+    )
+    expect(() =>
+      makeClient({ dynamoConfig: { region: 'us-west-2' }, tableConfig: {} })
+    ).toThrowError(/tableConfig\.tableName.+?required/)
+  })
+
+  it('returns valid client', () => {
+    const client = testClient()
+    expect(client.getTableName()).toBe('test-table')
+  })
 })
 
-test('makeClient returns valid client', (t) => {
-  const client = testClient()
-  t.is(client.getTableName(), 'test-table', 'tableName')
-})
+describe('BaseStore', () => {
+  it('typeKey joins type', () => {
+    const dynamo = testClient()
+    const store = new BaseStore({ dynamo, type: 'test' })
+    expect(store.typeKey('1')).toBe('test:1')
+  })
 
-test('BaseStore.typeKey joins type', (t) => {
-  const dynamo = testClient()
-  const store = new BaseStore({ dynamo, type: 'test' })
-  t.is(store.typeKey('1'), 'test:1', 'hash')
-})
+  it('getTableName returns tableName', () => {
+    const dynamo = testClient()
+    const store = new BaseStore({ dynamo, type: 'test' })
+    expect(store.getTableName()).toBe('test-table')
+  })
 
-test('BaseStore.getTableName returns tableName', (t) => {
-  const dynamo = testClient()
-  const store = new BaseStore({ dynamo, type: 'test' })
-  t.is(store.getTableName(), 'test-table', 'tableName')
-})
+  it('asKey returns key object', () => {
+    let dynamo = testClient()
+    let store = new BaseStore({ dynamo, type: 'test' })
+    expect(store.asKey('1')).toEqual({ id: 'test:1', sort_key: '_' })
+    expect(store.asKey('1', '2')).toEqual({ id: 'test:1', sort_key: '2' })
 
-test('BaseStore.asKey returns key object', (t) => {
-  let dynamo = testClient()
-  let store = new BaseStore({ dynamo, type: 'test' })
-  t.deepEqual(store.asKey('1'), { id: 'test:1', sort_key: '_' }, 'key with sort')
-  t.deepEqual(store.asKey('1', '2'), { id: 'test:1', sort_key: '2' }, 'key with custom sort')
+    store = new BaseStore({ dynamo: testClient({ hasSortField: false }), type: 'test' })
+    expect(store.asKey('1')).toEqual({ id: 'test:1' })
+  })
 
-  store = new BaseStore({ dynamo: testClient({ hasSortField: false }), type: 'test' })
-  t.deepEqual(store.asKey('1'), { id: 'test:1' }, 'key without sort')
-})
+  it('getKey returns key object', () => {
+    let dynamo = testClient()
+    let store = new BaseStore({ dynamo, type: 'test' })
+    expect(store.getKey({ id: '1' })).toEqual({ id: 'test:1', sort_key: '_' })
+    expect(store.getKey({ id: '1', extra: 'removed' })).toEqual({ id: 'test:1', sort_key: '_' })
+    expect(store.getKey({ id: '1', sort_key: '2' })).toEqual({ id: 'test:1', sort_key: '_' })
 
-test('BaseStore.getKey returns key object', (t) => {
-  let dynamo = testClient()
-  let store = new BaseStore({ dynamo, type: 'test' })
-  t.deepEqual(store.getKey({ id: '1' }), { id: 'test:1', sort_key: '_' }, 'key with sort')
-  t.deepEqual(
-    store.getKey({ id: '1', extra: 'removed' }),
-    { id: 'test:1', sort_key: '_' },
-    'key with sort'
-  )
-  t.deepEqual(
-    store.getKey({ id: '1', sort_key: '2' }),
-    { id: 'test:1', sort_key: '_' },
-    'key with custom sort'
-  )
+    store = new BaseStore({ dynamo: testClient({ hasSortField: false }), type: 'test' })
+    expect(store.asKey('1')).toEqual({ id: 'test:1' })
+  })
 
-  store = new BaseStore({ dynamo: testClient({ hasSortField: false }), type: 'test' })
-  t.deepEqual(store.asKey('1'), { id: 'test:1' }, 'key without sort')
-})
+  it('getKey returns key object with custom sort', () => {
+    let dynamo = testClient()
+    let store = new BaseStore({ dynamo, type: 'test', sortKey: 'name' })
+    expect(store.getKey({ id: '1' })).toEqual({ id: 'test:1', sort_key: '_' })
+    expect(store.getKey({ id: '1', extra: 'removed' })).toEqual({ id: 'test:1', sort_key: '_' })
+    expect(store.getKey({ id: '1', name: '2' })).toEqual({ id: 'test:1', sort_key: '2' })
 
-test('BaseStore.getKey returns key object with custom sort', (t) => {
-  let dynamo = testClient()
-  let store = new BaseStore({ dynamo, type: 'test', sortKey: 'name' })
-  t.deepEqual(store.getKey({ id: '1' }), { id: 'test:1', sort_key: '_' }, 'key with sort')
-  t.deepEqual(
-    store.getKey({ id: '1', extra: 'removed' }),
-    { id: 'test:1', sort_key: '_' },
-    'key with sort'
-  )
-  t.deepEqual(
-    store.getKey({ id: '1', name: '2' }),
-    { id: 'test:1', sort_key: '2' },
-    'key with custom sort'
-  )
+    store = new BaseStore({ dynamo: testClient({ hasSortField: false }), type: 'test' })
+    expect(store.asKey('1')).toEqual({ id: 'test:1' })
+  })
 
-  store = new BaseStore({ dynamo: testClient({ hasSortField: false }), type: 'test' })
-  t.deepEqual(store.asKey('1'), { id: 'test:1' }, 'key without sort')
-})
+  it('BaseStore fromDb handles empty item', () => {
+    let dynamo = testClient()
+    let store = new BaseStore({ dynamo, type: 'test' })
+    expect(store.fromDb()).toBe(null)
+    expect(store.fromDb(null)).toBe(null)
+    expect(store.fromDb({})).toBe(null)
+    expect(store.fromDb({ data: null })).toBe(null)
+  })
 
-test('BaseStore fromDb handles empty item', (t) => {
-  let dynamo = testClient()
-  let store = new BaseStore({ dynamo, type: 'test' })
-  t.is(store.fromDb(), null, 'missing')
-  t.is(store.fromDb(null), null, 'null')
-  t.is(store.fromDb({}), null, 'empty')
-  t.is(store.fromDb({ data: null }), null, 'data empty')
-})
+  it('BaseStore fromDb unwraps data', () => {
+    let dynamo = testClient()
+    let store = new BaseStore({ dynamo, type: 'test' })
+    let thing = {}
+    expect(store.fromDb({ data: thing })).toBe(thing)
+  })
 
-test('BaseStore fromDb unwraps data', (t) => {
-  let dynamo = testClient()
-  let store = new BaseStore({ dynamo, type: 'test' })
-  let thing = {}
-  t.is(store.fromDb({ data: thing }), thing, 'unwrapped')
-})
-
-test('BaseStore toDb wraps input', (t) => {
-  let dynamo = testClient()
-  let store = new BaseStore({ dynamo, type: 'test' })
-  let item = {
-    id: 'id',
-    name: 'test',
-  }
-  t.deepEqual(
-    // Don't try to compare datetimes
-    { ...store.toDb(item), updatedOn: undefined },
-    {
+  it('BaseStore toDb wraps input', () => {
+    let dynamo = testClient()
+    let store = new BaseStore({ dynamo, type: 'test' })
+    let item = {
+      id: 'id',
+      name: 'test',
+    }
+    expect(
+      // Don't try to compare datetimes
+      { ...store.toDb(item), updatedOn: undefined }
+    ).toEqual({
       id: 'test:id',
       sort_key: '_',
       type: 'test',
@@ -132,249 +110,246 @@ test('BaseStore toDb wraps input', (t) => {
       createdOn: undefined,
       updatedOn: undefined,
       data: item,
-    },
-    'wrapped'
-  )
-})
-
-test('BaseStore calls dynamo for get', async (t) => {
-  let dynamo = testClient()
-  dynamo.get = stub()
-  let store = new BaseStore({ dynamo, type: 'test' })
-  dynamo.get.resolves({})
-  await store.get('id')
-  t.truthy(dynamo.get.called, 'called')
-  t.deepEqual(
-    dynamo.get.firstCall.args[0],
-    { TableName: 'test-table', Key: { id: 'test:id', sort_key: '_' } },
-    'params'
-  )
-})
-
-test('BaseStore calls dynamo for put', async (t) => {
-  let dynamo = testClient()
-  dynamo.put = stub()
-  let store = new BaseStore({ dynamo, type: 'test' })
-  dynamo.put.resolves({})
-  await store.put({ id: 'id', name: 'test' })
-  t.truthy(dynamo.put.called, 'called')
-  t.is(dynamo.put.firstCall.args[0].Item.id, 'test:id', 'params')
-  t.is(dynamo.put.firstCall.args[0].Item.data.name, 'test', 'params')
-})
-
-test('BaseStore calls dynamo for delete', async (t) => {
-  let dynamo = testClient()
-  dynamo.delete = stub()
-  let store = new BaseStore({ dynamo, type: 'test' })
-  dynamo.delete.resolves({})
-  await store.delete('id')
-  t.truthy(dynamo.delete.called, 'called')
-  t.deepEqual(
-    dynamo.delete.firstCall.args[0],
-    { TableName: 'test-table', Key: { id: 'test:id', sort_key: '_' } },
-    'params'
-  )
-})
-
-test('BaseStore.query calls dynamo', async (t) => {
-  let dynamo = testClient()
-  dynamo.query = stub().resolves({ Items: [] })
-  let store = new BaseStore({ dynamo, type: 'test' })
-  await store.query({
-    IndexName: 'type-index',
-    KeyConditionExpression: '#type = :type',
-    ExpressionAttributeNames: { '#type': 'type' },
-    ExpressionAttributeValues: { ':type': 'test' },
+    })
   })
-  let expected = {
-    TableName: 'test-table',
-    IndexName: 'type-index',
-    KeyConditionExpression: '#type = :type',
-    ExpressionAttributeNames: { '#type': 'type' },
-    ExpressionAttributeValues: { ':type': 'test' },
-  }
-  t.truthy(dynamo.query.called, 'called')
-  t.deepEqual(dynamo.query.firstCall.args[0], expected, 'params')
-})
 
-test('BaseStore.scan calls dynamo', async (t) => {
-  let dynamo = testClient()
-  dynamo.scan = stub().resolves({ Items: [] })
-  let store = new BaseStore({ dynamo, type: 'test' })
-  let username = 'tester'
-  await store.scan({
-    FilterExpression: 'contains(#username, :username)',
-    ExpressionAttributeNames: { '#username': 'username' },
-    ExpressionAttributeValues: { ':username': username.toLowerCase() },
+  it('BaseStore calls dynamo for get', async () => {
+    let dynamo = testClient()
+    dynamo.get = stub()
+    let store = new BaseStore({ dynamo, type: 'test' })
+    dynamo.get.resolves({})
+    await store.get('id')
+    expect(dynamo.get.called).toBeTruthy()
+    expect(dynamo.get.firstCall.args[0]).toEqual({
+      TableName: 'test-table',
+      Key: { id: 'test:id', sort_key: '_' },
+    })
   })
-  let expected = {
-    TableName: 'test-table',
-    FilterExpression: 'contains(#username, :username)',
-    ExpressionAttributeNames: { '#username': 'username' },
-    ExpressionAttributeValues: { ':username': username.toLowerCase() },
-  }
-  t.truthy(dynamo.scan.called, 'called')
-  t.deepEqual(dynamo.scan.firstCall.args[0], expected, 'params')
-})
 
-test('BaseStore.batchGet calls dynamo', async (t) => {
-  let dynamo = testClient()
-  dynamo.batchGet = stub().resolves({ Items: [] })
-  let store = new BaseStore({ dynamo, type: 'test' })
-  let item = store.toDb({ id: '1' })
-  await store.batchGet([store.asKey(item)])
-  let expected = {
-    RequestItems: {
-      [dynamo.getTableName()]: {
-        Keys: [store.asKey(item)],
+  it('BaseStore calls dynamo for put', async () => {
+    let dynamo = testClient()
+    dynamo.put = stub()
+    let store = new BaseStore({ dynamo, type: 'test' })
+    dynamo.put.resolves({})
+    await store.put({ id: 'id', name: 'test' })
+    expect(dynamo.put.called).toBeTruthy()
+    expect(dynamo.put.firstCall.args[0].Item.id).toBe('test:id')
+    expect(dynamo.put.firstCall.args[0].Item.data.name).toBe('test')
+  })
+
+  it('BaseStore calls dynamo for delete', async () => {
+    let dynamo = testClient()
+    dynamo.delete = stub()
+    let store = new BaseStore({ dynamo, type: 'test' })
+    dynamo.delete.resolves({})
+    await store.delete('id')
+    expect(dynamo.delete.called).toBeTruthy()
+    expect(dynamo.delete.firstCall.args[0]).toEqual({
+      TableName: 'test-table',
+      Key: { id: 'test:id', sort_key: '_' },
+    })
+  })
+
+  it('query calls dynamo', async () => {
+    let dynamo = testClient()
+    dynamo.query = stub().resolves({ Items: [] })
+    let store = new BaseStore({ dynamo, type: 'test' })
+    await store.query({
+      IndexName: 'type-index',
+      KeyConditionExpression: '#type = :type',
+      ExpressionAttributeNames: { '#type': 'type' },
+      ExpressionAttributeValues: { ':type': 'test' },
+    })
+    let expected = {
+      TableName: 'test-table',
+      IndexName: 'type-index',
+      KeyConditionExpression: '#type = :type',
+      ExpressionAttributeNames: { '#type': 'type' },
+      ExpressionAttributeValues: { ':type': 'test' },
+    }
+    expect(dynamo.query.called).toBeTruthy()
+    expect(dynamo.query.firstCall.args[0]).toEqual(expected)
+  })
+
+  it('scan calls dynamo', async () => {
+    let dynamo = testClient()
+    dynamo.scan = stub().resolves({ Items: [] })
+    let store = new BaseStore({ dynamo, type: 'test' })
+    let username = 'tester'
+    await store.scan({
+      FilterExpression: 'contains(#username, :username)',
+      ExpressionAttributeNames: { '#username': 'username' },
+      ExpressionAttributeValues: { ':username': username.toLowerCase() },
+    })
+    let expected = {
+      TableName: 'test-table',
+      FilterExpression: 'contains(#username, :username)',
+      ExpressionAttributeNames: { '#username': 'username' },
+      ExpressionAttributeValues: { ':username': username.toLowerCase() },
+    }
+    expect(dynamo.scan.called).toBeTruthy()
+    expect(dynamo.scan.firstCall.args[0]).toEqual(expected)
+  })
+
+  it('batchGet calls dynamo', async () => {
+    let dynamo = testClient()
+    dynamo.batchGet = stub().resolves({ Items: [] })
+    let store = new BaseStore({ dynamo, type: 'test' })
+    let item = store.toDb({ id: '1' })
+    await store.batchGet([store.asKey(item)])
+    let expected = {
+      RequestItems: {
+        [dynamo.getTableName()]: {
+          Keys: [store.asKey(item)],
+        },
       },
-    },
-  }
-  t.truthy(dynamo.batchGet.called, 'called')
-  t.deepEqual(dynamo.batchGet.firstCall.args[0], expected, 'params')
-})
-
-test('BaseStore.batchWrite calls dynamo', async (t) => {
-  let dynamo = testClient()
-  dynamo.batchWrite = stub().resolves({ Items: [] })
-  let store = new BaseStore({ dynamo, type: 'test' })
-  let item = store.toDb({ id: '1' })
-  await store.batchWrite([{ PutRequest: { Item: item } }])
-  let expected = {
-    RequestItems: {
-      [dynamo.getTableName()]: [{ PutRequest: { Item: item } }],
-    },
-  }
-  t.truthy(dynamo.batchWrite.called, 'called')
-  t.deepEqual(dynamo.batchWrite.firstCall.args[0], expected, 'params')
-})
-
-test('BaseStore.queryAll calls dynamo', async (t) => {
-  let dynamo = testClient()
-  dynamo.queryAll = stub().resolves({ Items: [] })
-  let store = new BaseStore({ dynamo, type: 'test' })
-  await store.queryAll({
-    IndexName: 'type-index',
-    KeyConditionExpression: '#type = :type',
-    ExpressionAttributeNames: { '#type': 'type' },
-    ExpressionAttributeValues: { ':type': 'test' },
+    }
+    expect(dynamo.batchGet.called).toBeTruthy()
+    expect(dynamo.batchGet.firstCall.args[0]).toEqual(expected)
   })
-  let expected = {
-    TableName: 'test-table',
-    IndexName: 'type-index',
-    KeyConditionExpression: '#type = :type',
-    ExpressionAttributeNames: { '#type': 'type' },
-    ExpressionAttributeValues: { ':type': 'test' },
-  }
-  t.truthy(dynamo.queryAll.called, 'called')
-  t.deepEqual(dynamo.queryAll.firstCall.args[0], expected, 'params')
-})
 
-test('BaseStore.scanAll calls dynamo', async (t) => {
-  let dynamo = testClient()
-  dynamo.scanAll = stub().resolves({ Items: [] })
-  let store = new BaseStore({ dynamo, type: 'test' })
-  let username = 'tester'
-  await store.scanAll({
-    FilterExpression: 'contains(#username, :username)',
-    ExpressionAttributeNames: { '#username': 'username' },
-    ExpressionAttributeValues: { ':username': username.toLowerCase() },
-  })
-  let expected = {
-    TableName: 'test-table',
-    FilterExpression: 'contains(#username, :username)',
-    ExpressionAttributeNames: { '#username': 'username' },
-    ExpressionAttributeValues: { ':username': username.toLowerCase() },
-  }
-  t.truthy(dynamo.scanAll.called, 'called')
-  t.deepEqual(dynamo.scanAll.firstCall.args[0], expected, 'params')
-})
-
-test('BaseStore.batchGetAll calls dynamo', async (t) => {
-  let dynamo = testClient()
-  dynamo.batchGetAll = stub().resolves({ Responses: { [dynamo.getTableName()]: [] } })
-  let store = new BaseStore({ dynamo, type: 'test' })
-  let item = store.toDb({ id: '1' })
-  await store.batchGetAll([store.asKey(item)])
-  let expected = {
-    RequestItems: {
-      [dynamo.getTableName()]: {
-        Keys: [store.asKey(item)],
+  it('batchWrite calls dynamo', async () => {
+    let dynamo = testClient()
+    dynamo.batchWrite = stub().resolves({ Items: [] })
+    let store = new BaseStore({ dynamo, type: 'test' })
+    let item = store.toDb({ id: '1' })
+    await store.batchWrite([{ PutRequest: { Item: item } }])
+    let expected = {
+      RequestItems: {
+        [dynamo.getTableName()]: [{ PutRequest: { Item: item } }],
       },
-    },
-  }
-  t.truthy(dynamo.batchGetAll.called, 'called')
-  t.deepEqual(dynamo.batchGetAll.firstCall.args[0], expected, 'params')
-})
+    }
+    expect(dynamo.batchWrite.called).toBeTruthy()
+    expect(dynamo.batchWrite.firstCall.args[0]).toEqual(expected)
+  })
 
-test('BaseStore.batchGetAll returns early when given empty array', async (t) => {
-  let dynamo = testClient()
-  dynamo.batchGetAll = stub().rejects(new Error('should have avoided call'))
-  let store = new BaseStore({ dynamo, type: 'test' })
-  let result = await store.batchGetAll([])
-  t.deepEqual(result, [], 'returned empty array')
-  t.falsy(dynamo.batchGetAll.called, 'called')
-})
+  it('queryAll calls dynamo', async () => {
+    let dynamo = testClient()
+    dynamo.queryAll = stub().resolves({ Items: [] })
+    let store = new BaseStore({ dynamo, type: 'test' })
+    await store.queryAll({
+      IndexName: 'type-index',
+      KeyConditionExpression: '#type = :type',
+      ExpressionAttributeNames: { '#type': 'type' },
+      ExpressionAttributeValues: { ':type': 'test' },
+    })
+    let expected = {
+      TableName: 'test-table',
+      IndexName: 'type-index',
+      KeyConditionExpression: '#type = :type',
+      ExpressionAttributeNames: { '#type': 'type' },
+      ExpressionAttributeValues: { ':type': 'test' },
+    }
+    expect(dynamo.queryAll.called).toBeTruthy()
+    expect(dynamo.queryAll.firstCall.args[0]).toEqual(expected)
+  })
 
-test('BaseStore.batchWriteAll calls dynamo', async (t) => {
-  let dynamo = testClient()
-  dynamo.batchWriteAll = stub().resolves({ Items: [] })
-  let store = new BaseStore({ dynamo, type: 'test' })
-  let item = store.toDb({ id: '1' })
-  await store.batchWriteAll([{ PutRequest: { Item: item } }])
-  let expected = {
-    RequestItems: {
-      [dynamo.getTableName()]: [{ PutRequest: { Item: item } }],
-    },
-  }
-  t.truthy(dynamo.batchWriteAll.called, 'called')
-  t.deepEqual(dynamo.batchWriteAll.firstCall.args[0], expected, 'params')
-})
+  it('scanAll calls dynamo', async () => {
+    let dynamo = testClient()
+    dynamo.scanAll = stub().resolves({ Items: [] })
+    let store = new BaseStore({ dynamo, type: 'test' })
+    let username = 'tester'
+    await store.scanAll({
+      FilterExpression: 'contains(#username, :username)',
+      ExpressionAttributeNames: { '#username': 'username' },
+      ExpressionAttributeValues: { ':username': username.toLowerCase() },
+    })
+    let expected = {
+      TableName: 'test-table',
+      FilterExpression: 'contains(#username, :username)',
+      ExpressionAttributeNames: { '#username': 'username' },
+      ExpressionAttributeValues: { ':username': username.toLowerCase() },
+    }
+    expect(dynamo.scanAll.called).toBeTruthy()
+    expect(dynamo.scanAll.firstCall.args[0]).toEqual(expected)
+  })
 
-test('BaseStore.batchWriteAll returns early when given empty array', async (t) => {
-  let dynamo = testClient()
-  dynamo.batchWriteAll = stub().rejects(new Error('should have avoided call'))
-  let store = new BaseStore({ dynamo, type: 'test' })
-  let result = await store.batchWriteAll([])
-  t.deepEqual(result, [], 'returned empty array')
-  t.falsy(dynamo.batchWriteAll.called, 'called')
-})
+  it('batchGetAll calls dynamo', async () => {
+    let dynamo = testClient()
+    dynamo.batchGetAll = stub().resolves({ Responses: { [dynamo.getTableName()]: [] } })
+    let store = new BaseStore({ dynamo, type: 'test' })
+    let item = store.toDb({ id: '1' })
+    await store.batchGetAll([store.asKey(item)])
+    let expected = {
+      RequestItems: {
+        [dynamo.getTableName()]: {
+          Keys: [store.asKey(item)],
+        },
+      },
+    }
+    expect(dynamo.batchGetAll.called).toBeTruthy()
+    expect(dynamo.batchGetAll.firstCall.args[0]).toEqual(expected)
+  })
 
-test('BaseStore.getAll calls dynamo', async (t) => {
-  let dynamo = testClient()
-  dynamo.queryAll = stub().resolves({ Items: [] })
-  let store = new BaseStore({ dynamo, type: 'test' })
-  await store.getAll()
-  let expected = {
-    TableName: 'test-table',
-    IndexName: 'type-index',
-    KeyConditionExpression: '#type = :type',
-    ExpressionAttributeNames: { '#type': 'type' },
-    ExpressionAttributeValues: { ':type': 'test' },
-  }
-  t.truthy(dynamo.queryAll.called, 'called')
-  t.deepEqual(dynamo.queryAll.firstCall.args[0], expected, 'params')
-})
+  it('batchGetAll returns early when given empty array', async () => {
+    let dynamo = testClient()
+    dynamo.batchGetAll = stub().rejects(new Error('should have avoided call'))
+    let store = new BaseStore({ dynamo, type: 'test' })
+    let result = await store.batchGetAll([])
+    expect(result).toEqual([])
+    expect(dynamo.batchGetAll.called).toBeFalsy()
+  })
 
-test('BaseStore.forEachPage calls dynamo', async (t) => {
-  let dynamo = testClient()
-  dynamo.query = stub().resolves({ Items: [] })
+  it('batchWriteAll calls dynamo', async () => {
+    let dynamo = testClient()
+    dynamo.batchWriteAll = stub().resolves({ Items: [] })
+    let store = new BaseStore({ dynamo, type: 'test' })
+    let item = store.toDb({ id: '1' })
+    await store.batchWriteAll([{ PutRequest: { Item: item } }])
+    let expected = {
+      RequestItems: {
+        [dynamo.getTableName()]: [{ PutRequest: { Item: item } }],
+      },
+    }
+    expect(dynamo.batchWriteAll.called).toBeTruthy()
+    expect(dynamo.batchWriteAll.firstCall.args[0]).toEqual(expected)
+  })
 
-  let store = new BaseStore({ dynamo, type: 'test' })
+  it('batchWriteAll returns early when given empty array', async () => {
+    let dynamo = testClient()
+    dynamo.batchWriteAll = stub().rejects(new Error('should have avoided call'))
+    let store = new BaseStore({ dynamo, type: 'test' })
+    let result = await store.batchWriteAll([])
+    expect(result).toEqual(undefined)
+    expect(dynamo.batchWriteAll.called).toBeFalsy()
+  })
 
-  await store.forEachPage(stub())
+  it('getAll calls dynamo', async () => {
+    let dynamo = testClient()
+    dynamo.queryAll = stub().resolves({ Items: [] })
+    let store = new BaseStore({ dynamo, type: 'test' })
+    await store.getAll()
+    let expected = {
+      TableName: 'test-table',
+      IndexName: 'type-index',
+      KeyConditionExpression: '#type = :type',
+      ExpressionAttributeNames: { '#type': 'type' },
+      ExpressionAttributeValues: { ':type': 'test' },
+    }
+    expect(dynamo.queryAll.called).toBeTruthy()
+    expect(dynamo.queryAll.firstCall.args[0]).toEqual(expected)
+  })
 
-  t.truthy(dynamo.query.called, 'called')
+  it('forEachPage calls dynamo', async () => {
+    let dynamo = testClient()
+    dynamo.query = stub().resolves({ Items: [] })
 
-  let expected = {
-    TableName: 'test-table',
-    IndexName: 'type-index',
-    KeyConditionExpression: '#type = :type',
-    ExpressionAttributeNames: { '#type': 'type' },
-    ExpressionAttributeValues: { ':type': 'test' },
-    Limit: 100,
-    ExclusiveStartKey: undefined,
-  }
+    let store = new BaseStore({ dynamo, type: 'test' })
 
-  t.deepEqual(dynamo.query.firstCall.args[0], expected, 'params')
+    await store.forEachPage(stub())
+
+    expect(dynamo.query.called).toBeTruthy()
+
+    let expected = {
+      TableName: 'test-table',
+      IndexName: 'type-index',
+      KeyConditionExpression: '#type = :type',
+      ExpressionAttributeNames: { '#type': 'type' },
+      ExpressionAttributeValues: { ':type': 'test' },
+      Limit: 100,
+      ExclusiveStartKey: undefined,
+    }
+
+    expect(dynamo.query.firstCall.args[0]).toEqual(expected)
+  })
 })
