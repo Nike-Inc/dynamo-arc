@@ -5,7 +5,7 @@ A dynamo data client designed for use with DyanmoDB Single Table applications.
 ## Quick Start
 
 ```javascript
-const { makeClient, BaseStore, Cache } = require('@nike/dynamo-client')
+const { makeClient, BaseStore, Cache } = require('dynamo-arc')
 
 // Setup the base client
 const dynamo = makeClient({
@@ -82,7 +82,7 @@ The only required property for the `tableConfig` is the `tableName`, which is th
 ```typescript
 declare class BaseStore {
   constructor(
-    dynamo: DynamoClient,
+    dynamo: ArcClient,
     logger: Logger, // see Logging section below
     type: string,
     idKey = 'id',
