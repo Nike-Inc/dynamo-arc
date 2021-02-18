@@ -111,7 +111,7 @@ export interface BaseStoreConfig<T> {
   delimiter?: string
 }
 
-export class BaseStore<T extends TableKey & { [key: string]: unknown }> {
+export class BaseStore<T extends TableKey> {
   public [_type]: string
   public [_dynamo]: ArcClient
   public [_logger]: Logger
