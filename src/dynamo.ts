@@ -100,33 +100,31 @@ export interface TableKey {
 
 export interface DbItem {
   data?: unknown
+  createdOn?: Date | number
 }
 
 export interface BaseStoreConfig<T> {
   logger?: unknown
   dynamo: ArcClient
   type: string
-  idKey?: keyof T | 'id'
-  sortKey?: keyof T
+  idKey?: keyof T & string
+  sortKey?: (keyof T & string) | undefined
   delimiter?: string
 }
 
-export class BaseStore<T extends TableKey> {
+export class BaseStore<T> {
   public [_type]: string
   public [_dynamo]: ArcClient
   public [_logger]: Logger
-  public [_idKey]: keyof T | 'id'
-  public [_sortKey]?: keyof T | undefined
+  public [_idKey]: keyof T & string
+  public [_sortKey]?: (keyof T & string) | undefined
   public [_delimiter]: string
 
-  constructor({
-    logger,
-    dynamo,
-    type,
-    sortKey,
-    idKey = 'id',
-    delimiter = ':',
-  }: BaseStoreConfig<T>) {
+  constructor({ logger, dynamo, type, sortKey, idKey, delimiter = ':' }: BaseStoreConfig<T>) {
+    if (!idKey) {
+      throw new Error('"idKey" is required')
+    }
+
     this[_type] = type
     this[_dynamo] = dynamo
     this[_logger] = wrapper(logger)
@@ -163,10 +161,15 @@ export class BaseStore<T extends TableKey> {
 
   /** Returns the Key object used by dynamo by extracting it from a the JS item object. Useful for building batch lists */
   getKey(item: T): TableKey {
+    // The "as unknown as string" hack allows us to pull the keys out of the object
+    // Typescript cannot see it, but we've already verified that these properties exist
+    // In the generic types "keyof" constraints
+    // This is verified in the baseStore.types.ts test
+    // This should be replaced as soon as a type-safe constraint solution can be found
     return asKey(
       this[_dynamo],
-      this.typeKey(item[this[_idKey]]),
-      this[_sortKey] && item[this[_sortKey] as keyof T]
+      this.typeKey((item[this[_idKey]] as unknown) as string),
+      this[_sortKey] ? ((item[this[_sortKey] as keyof T] as unknown) as string) : undefined
     )
   }
 
@@ -179,15 +182,15 @@ export class BaseStore<T extends TableKey> {
 
   /** Convert a plain JS object into a DynamoDB record */
   toDb(item: T): DbItem {
-    const id = item[this[_idKey]]
+    const id = (item[this[_idKey]] as unknown) as string
     const data = { ...item }
 
     const dbItem = {
-      ...this.asKey(id, this[_sortKey] && item[this[_sortKey] as keyof T]),
+      ...this.getKey(item),
       type: this[_type],
       // This is to make it easier to find in the dynamo console
       typeId: id,
-      createdOn: item.createdOn,
+      createdOn: (item as DbItem).createdOn,
       updatedOn: Date.now(),
       data,
     }
@@ -415,16 +418,12 @@ export class BaseStore<T extends TableKey> {
   }
 }
 
-export function asKey(
-  dynamo: ArcClient,
-  id: string,
-  sortKey: string | undefined = '_'
-): { [key: string]: string } {
+export function asKey(dynamo: ArcClient, id: string, sortKey?: string): { [key: string]: string } {
   const idField = dynamo[_idField]
   const sortField = dynamo[_sortField]
 
   const key = { [idField]: id }
-  if (sortField) key[sortField] = sortKey
+  if (sortField) key[sortField] = sortKey ?? '_'
 
   return key
 }
