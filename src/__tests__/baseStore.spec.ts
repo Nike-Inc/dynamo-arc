@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { BaseStore, BaseStoreConfig } from '../dynamo'
-
 import { describe, it, expect } from '@jest/globals'
+
+import { BaseStore, BaseStoreConfig } from '../dynamo'
 
 interface TestItem {
   root: string

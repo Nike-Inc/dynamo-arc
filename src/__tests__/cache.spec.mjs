@@ -1,12 +1,13 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 'use strict'
 
-const { describe, expect, it } = require('@jest/globals')
+import { jest, describe, expect, it } from '@jest/globals'
 
-const sinon = require('sinon')
+import sinon from 'sinon'
+import { Cache, defaultCacheTtl } from '../cache'
+import { _ttlField } from '../dynamo'
+
 const { stub } = sinon
-const { Cache, defaultCacheTtl } = require('../cache')
-const { _ttlField } = require('../dynamo')
 
 const createMetrics = () => ({ cacheHit: stub(), cacheMiss: stub() })
 const testClient = () => ({
