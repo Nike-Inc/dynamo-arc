@@ -12,11 +12,11 @@ import {
   _ttlField,
 } from './dynamo'
 
-export { makeClient, BaseStore, asKey } from './dynamo'
+export { makeClient, BaseStore, asKey, QueryInput, ScanInput, BatchGetItemOutputNative, BatchWriteItemOutputNative, WriteRequestNative } from './dynamo'
 export { Cache, defaultCacheTtl } from './cache'
 
-export type { ClientConfig, ArcClient, DbItem, BaseStoreConfig } from './dynamo'
-export type { CacheOptions, CacheConfig, CacheMetrics, BatchGetKeys } from './cache'
+export { ClientConfig, ArcClient, DbItem, BaseStoreConfig } from './dynamo'
+export { CacheOptions, CacheConfig, CacheMetrics, BatchGetKeys } from './cache'
 
 // Symbols need to be exported in both manners
 // The first supports typescript's need to have `unique symbol` not wrapped in an object

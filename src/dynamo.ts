@@ -6,8 +6,6 @@ import type {
   QueryInputNative,
   QueryOutputNative,
   ScanInputNative,
-  ScanOutputNative,
-  DeleteItemOutputNative,
   WriteRequestNative,
 } from 'dynamo-butter'
 
@@ -93,16 +91,6 @@ export function makeClient({
   client.getTableName = () => client[_tableName]
   return client
 }
-
-export interface TableKey {
-  [key: string]: string
-}
-
-export interface DbItem {
-  data?: unknown
-  createdOn?: Date | number
-}
-
 export interface BaseStoreConfig<T> {
   logger?: unknown
   dynamo: ArcClient
@@ -226,8 +214,8 @@ export class BaseStore<T> {
   }
 
   /** Delete the item from Dynamo matching the provided key */
-  async delete(id: string, sortKey?: string): Promise<DeleteItemOutputNative> {
-    return this[_dynamo].delete({
+  async delete(id: string, sortKey?: string): Promise<void> {
+    await this[_dynamo].delete({
       TableName: this.getTableName(),
       Key: this.asKey(id, sortKey),
     })
@@ -243,18 +231,22 @@ export class BaseStore<T> {
   }
 
   /** Execute a query against the configured Dynamo table */
-  async query(params: Pick<QueryInputNative, 'TableName'>): Promise<QueryOutputNative> {
-    return this[_dynamo].query({
+  async query(params: QueryInput): Promise<T[]> {
+    const response = await this[_dynamo].query({
       TableName: this.getTableName(),
       ...params,
     })
+    
+    if (!response?.Items?.length) return []
+
+    return response.Items.map(this.fromDb) as T[]
   }
 
   /**
    * Execute a query against the configured Dynamo table with automatic paging, mapped through fromDb()
    * @param {*} params DynamoDB.DocumentClient query, minus TableName
    */
-  async queryAll(params: Pick<QueryInputNative, 'TableName'>): Promise<T[]> {
+  async queryAll(params: QueryInput): Promise<T[]> {
     const response = await this[_dynamo].queryAll({
       TableName: this.getTableName(),
       ...params,
@@ -270,11 +262,15 @@ export class BaseStore<T> {
    * @param {*} params DynamoDB.DocumentClient scan, minus TableName
    * @return {*} DynamoDB.DocumentClient scan response
    */
-  async scan(params: Pick<ScanInputNative, 'TableName'>): Promise<ScanOutputNative> {
-    return this[_dynamo].scan({
+  async scan(params: ScanInput): Promise<T[]> {
+    const response = await this[_dynamo].scan({
       TableName: this.getTableName(),
       ...params,
     })
+
+    if (!response?.Items?.length) return []
+
+    return response.Items.map(this.fromDb) as T[]
   }
 
   /**
@@ -282,7 +278,7 @@ export class BaseStore<T> {
    * @param {*} params DynamoDB.DocumentClient scan, minus TableName
    * @return {*[]} Item Record Array
    */
-  async scanAll(params: Pick<ScanInputNative, 'TableName'>): Promise<T[]> {
+  async scanAll(params: ScanInput): Promise<T[]> {
     const response = await this[_dynamo].scanAll({
       TableName: this.getTableName(),
       ...params,
@@ -427,3 +423,19 @@ export function asKey(dynamo: ArcClient, id: string, sortKey?: string): { [key: 
 
   return key
 }
+
+export interface TableKey {
+  [key: string]: string
+}
+
+export interface DbItem {
+  data?: unknown
+  createdOn?: Date | number
+}
+
+export { BatchGetItemOutputNative }
+export { BatchWriteItemOutputNative }
+export { WriteRequestNative }
+
+export type QueryInput = Pick<QueryInputNative, 'TableName'>
+export type ScanInput = Pick<ScanInputNative, 'TableName'>
