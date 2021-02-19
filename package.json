@@ -6,7 +6,8 @@
     "style": "prettier --write \"{src,test}/**/*.ts\"",
     "build": "run-s build:clean build:types build:package",
     "build:types": "tsc",
-    "build:package": "rollup -c",
+    "build:rollup": "rollup -c",
+    "build:package": "node esbuild.js",
     "build:clean": "rimraf lib",
     "lint": "eslint 'src/**/*.{js,ts,tsx}' --quiet --fix",
     "check": "npm run style && npm run lint",
@@ -18,7 +19,6 @@
     "release": "npm run build && np"
   },
   "main": "lib/main.js",
-  "module": "lib/module.js",
   "types": "lib/types/main.d.ts",
   "files": [
     "lib"
@@ -44,6 +44,7 @@
     "@types/jest": "^26.0.20",
     "@typescript-eslint/eslint-plugin": "^4.15.1",
     "@typescript-eslint/parser": "^4.15.1",
+    "esbuild": "^0.8.49",
     "eslint": "^7.20.0",
     "eslint-config-prettier": "^7.2.0",
     "eslint-plugin-prettier": "^3.3.1",
@@ -56,6 +57,7 @@
     "rollup-plugin-terser": "^7.0.2",
     "sinon": "^9.0.2",
     "ts-jest": "^26.5.1",
+    "ts-loader": "^8.0.17",
     "tslib": "^1.13.0",
     "typescript": "^4.1.5"
   }
