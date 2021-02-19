@@ -1,6 +1,6 @@
 {
   "name": "dynamo-arc",
-  "version": "2.0.0-5",
+  "version": "2.0.0-6",
   "description": "A dynamo data client designed for use with DyanmoDB Single Table applications",
   "scripts": {
     "style": "prettier --write \"{src,test}/**/*.ts\"",
