@@ -1,6 +1,6 @@
 {
   "name": "dynamo-arc",
-  "version": "2.0.0-8",
+  "version": "2.0.0-6",
   "description": "A dynamo data client designed for use with DyanmoDB Single Table applications",
   "scripts": {
     "style": "prettier --write \"{src,test}/**/*.ts\"",
@@ -32,9 +32,6 @@
   ],
   "author": "Tim Kye",
   "license": "Apache-2.0",
-  "dependencies": {
-    "dynamo-butter": "^2.0.0-8"
-  },
   "devDependencies": {
     "@jest/globals": "^26.6.2",
     "@rollup/plugin-commonjs": "^17.1.0",
@@ -44,6 +41,7 @@
     "@types/jest": "^26.0.20",
     "@typescript-eslint/eslint-plugin": "^4.15.1",
     "@typescript-eslint/parser": "^4.15.1",
+    "dynamo-butter": "^2.0.0-8",
     "esbuild": "^0.8.49",
     "eslint": "^7.20.0",
     "eslint-config-prettier": "^7.2.0",
