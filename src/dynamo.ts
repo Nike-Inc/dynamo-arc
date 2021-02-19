@@ -1,5 +1,7 @@
-import { BatchGetItemOutputNative, BatchWriteItemOutputNative, up } from 'dynamo-butter'
-import type {
+import {
+  BatchGetItemOutputNative,
+  BatchWriteItemOutputNative,
+  up,
   DynamoButterClient,
   DynamoDBClientConfig,
   ButterClientOptions,
@@ -437,5 +439,5 @@ export { BatchGetItemOutputNative }
 export { BatchWriteItemOutputNative }
 export { WriteRequestNative }
 
-export type QueryInput = Pick<QueryInputNative, 'TableName'>
-export type ScanInput = Pick<ScanInputNative, 'TableName'>
+export type QueryInput = Omit<QueryInputNative, 'TableName'>
+export type ScanInput = Omit<ScanInputNative, 'TableName'>

@@ -4,7 +4,9 @@
   "description": "A dynamo data client designed for use with DyanmoDB Single Table applications",
   "scripts": {
     "style": "prettier --write \"{src,test}/**/*.ts\"",
-    "build": "rollup -c",
+    "build:rollup": "rollup -c",
+    "build:tsc": "tsc",
+    "build": "rm -fr dist/* && tsc -p tsconfig.json && tsc -p tsconfig-cjs.json && ./fixup",
     "lint": "eslint 'src/**/*.{js,ts,tsx}' --quiet --fix",
     "check": "npm run style && npm run lint",
     "test": "npm run check && npm run test:unit",
@@ -14,10 +16,15 @@
     "test:coverage": "jest && open coverage/index.html",
     "release": "npm run build && np"
   },
-  "main": "lib/main.js",
-  "types": "lib/main.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/mjs/index.js",
+      "require": "./dist/cjs/index.js"
+    }
+  },
+  "types": "dist/mjs/main.d.ts",
   "files": [
-    "lib/"
+    "dist"
   ],
   "repository": {
     "type": "git",
@@ -28,6 +35,9 @@
   ],
   "author": "Tim Kye",
   "license": "Apache-2.0",
+  "dependencies": {
+    "dynamo-butter": "^2.0.0-7"
+  },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^17.1.0",
     "@rollup/plugin-json": "^4.1.0",
@@ -36,7 +46,6 @@
     "@types/jest": "^26.0.20",
     "@typescript-eslint/eslint-plugin": "^4.15.1",
     "@typescript-eslint/parser": "^4.15.1",
-    "dynamo-butter": "^2.0.0-2",
     "eslint": "^7.20.0",
     "eslint-config-prettier": "^7.2.0",
     "eslint-plugin-prettier": "^3.3.1",
