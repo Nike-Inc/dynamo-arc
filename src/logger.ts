@@ -1,5 +1,3 @@
-import assert from 'assert'
-
 const logLevels = ['debug', 'info', 'warn', 'error']
 
 export interface Logger {
@@ -42,10 +40,7 @@ function shouldSkipLog(logger: unknown, prop: keyof Omit<Logger, 'minimumLogLeve
 
 function validateLogLevel(logger: unknown) {
   const self = logger as Logger
-  if (self.minimumLogLevel) {
-    assert(
-      logLevels.indexOf(self.minimumLogLevel as string) !== -1,
-      `"minimumLogLevel" must be one of: ${logLevels.join(', ')} or falsy`
-    )
+  if (self.minimumLogLevel && logLevels.indexOf(self.minimumLogLevel as string) === -1) {
+    throw new Error(`"minimumLogLevel" must be one of: ${logLevels.join(', ')} or falsy`)
   }
 }

@@ -12,7 +12,16 @@ import {
   _ttlField,
 } from './dynamo'
 
-export { makeClient, BaseStore, asKey, QueryInput, ScanInput, BatchGetItemOutputNative, BatchWriteItemOutputNative, WriteRequestNative } from './dynamo'
+export {
+  makeClient,
+  BaseStore,
+  asKey,
+  QueryInput,
+  ScanInput,
+  BatchGetItemOutputNative,
+  BatchWriteItemOutputNative,
+  WriteRequestNative,
+} from './dynamo'
 export { Cache, defaultCacheTtl } from './cache'
 
 export { ClientConfig, ArcClient, DbItem, BaseStoreConfig } from './dynamo'

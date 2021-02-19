@@ -236,7 +236,7 @@ export class BaseStore<T> {
       TableName: this.getTableName(),
       ...params,
     })
-    
+
     if (!response?.Items?.length) return []
 
     return response.Items.map(this.fromDb) as T[]
