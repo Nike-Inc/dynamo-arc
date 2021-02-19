@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 'use strict'
 
-import { jest, describe, expect, it } from '@jest/globals'
+const { describe, expect, it } = require('@jest/globals')
 
-import sinon from 'sinon'
-import { Cache, defaultCacheTtl } from '../cache'
-import { _ttlField } from '../dynamo'
+const sinon = require('sinon')
+const { Cache, defaultCacheTtl } = require('../cache')
+const { _ttlField } = require('../dynamo')
 
 const { stub } = sinon
 

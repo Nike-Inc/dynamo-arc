@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 'use strict'
 
-import { describe, expect, it } from '@jest/globals'
+const { describe, expect, it } = require('@jest/globals')
 
-import sinon from 'sinon'
-import { makeClient, BaseStore } from '../dynamo'
+const sinon = require('sinon')
+const { makeClient, BaseStore } = require('../dynamo')
 
 const { stub } = sinon
 const testClient = (config) =>

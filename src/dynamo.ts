@@ -1,7 +1,7 @@
 import {
+  up,
   BatchGetItemOutputNative,
   BatchWriteItemOutputNative,
-  up,
   DynamoButterClient,
   DynamoDBClientConfig,
   ButterClientOptions,

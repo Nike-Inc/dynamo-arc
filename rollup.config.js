@@ -1,26 +1,20 @@
 // rollup.config.js
 import typescript from '@rollup/plugin-typescript'
-import { nodeResolve } from '@rollup/plugin-node-resolve'
-import commonjs from '@rollup/plugin-commonjs'
-import json from '@rollup/plugin-json'
-import { terser } from 'rollup-plugin-terser'
 
 export default {
   input: 'src/main.ts',
-  output: {
-    dir: 'lib',
-    format: 'cjs',
-  },
-  // external: ['@aws-sdk/client-dynamodb', '@aws-sdk/util-dynamodb'],
-  plugins: [
-    typescript(),
-    nodeResolve({ jsnext: 'main' }),
-    commonjs(),
-    json(),
-    // terser({
-    //   compress: {
-    //     ecma: '2019',
-    //   },
-    // }),
+  output: [
+    {
+      // dir: 'lib',
+      file: 'lib/main.js',
+      format: 'cjs',
+    },
+    {
+      // dir: 'lib',
+      file: 'lib/module.js',
+      format: 'esm',
+    },
   ],
+  // external: ['@aws-sdk/client-dynamodb', '@aws-sdk/util-dynamodb'],
+  plugins: [typescript()],
 }
