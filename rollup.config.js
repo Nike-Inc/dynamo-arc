@@ -12,5 +12,15 @@ export default {
     format: 'cjs',
   },
   // external: ['@aws-sdk/client-dynamodb', '@aws-sdk/util-dynamodb'],
-  plugins: [typescript(), nodeResolve({ jsnext: 'main' }), commonjs(), json(), terser()],
+  plugins: [
+    typescript(),
+    nodeResolve({ jsnext: 'main' }),
+    commonjs(),
+    json(),
+    // terser({
+    //   compress: {
+    //     ecma: '2019',
+    //   },
+    // }),
+  ],
 }

@@ -2,7 +2,7 @@
   "compilerOptions": {
     "lib": ["es2019", "dom"],
     "module": "esnext",
-    "target": "es2019",
+    "target": "ES2019",
     "declaration": true,
     "strict": true,
     "outDir": "lib",
@@ -10,7 +10,7 @@
     "rootDir": "src",
     "moduleResolution": "node",
     "esModuleInterop": true,
-    "preserveSymlinks": true,
+    "noEmitHelpers": true,
     "strictPropertyInitialization": true
   },
   "include": [
