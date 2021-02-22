@@ -24,7 +24,7 @@ export {
 } from './dynamo'
 export { Cache, defaultCacheTtl } from './cache'
 
-export { ClientConfig, ArcClient, DbItem, BaseStoreConfig } from './dynamo'
+export { ClientConfig, ArcClient, DbItem, TableKey, BaseStoreConfig } from './dynamo'
 export { CacheOptions, CacheConfig, CacheMetrics, BatchGetKeys } from './cache'
 
 // Symbols need to be exported in both manners
