@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "lib": ["es2020"],
+    "target": "es2019",
+    "module": "esnext",
+    "outDir": "lib",
+    "declarationDir": "lib/types",
+    "declaration": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "rootDir": "src",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "inlineSourceMap": false,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "importHelpers": false,
+    "emitDeclarationOnly" :true
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": ["node_modules", "**/__tests__/*"]
+}
