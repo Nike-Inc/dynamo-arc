@@ -190,6 +190,25 @@ class BaseStore {
   }
 
   /**
+   * Create or Update the item in Dynamo with expressions
+   * @param {*} id id value
+   * @param {*} sortKey sort key value
+   * @param {*} updateProps [Update-Item Params](https://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#update-property)
+   * @param {{}} options
+   * @param {boolean} options.useFromDb cast Attributes in response with fromDb, defaults to true
+   * @return {*} Item Record (same object passed in)
+   * @memberof BaseStore
+   */
+  async update(id, sortKey, updateProps, { useFromDb = true } = {}) {
+    let response = await this[_dynamo].update({
+      TableName: this.getTableName(),
+      Key: this.asKey(id, sortKey),
+      ...updateProps,
+    })
+    return response.Attributes && useFromDb ? this.fromDb(response.Attributes) : response.Attributes
+  }
+
+  /**
    * Execute a query against the configured Dynamo table
    * @param {*} params DynamoDB.DocumentClient query, minus TableName
    * @return {*} DynamoDB.DocumentClient query response
