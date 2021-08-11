@@ -18,6 +18,8 @@ const _idKey = Symbol('_idKey')
 const _sortKey = Symbol('_sortKey')
 const _delimiter = Symbol('_delimiter')
 
+const pageBreak = Symbol('pageBreak')
+
 function makeClient({
   dynamoConfig: config,
   butterConfig,
@@ -365,25 +367,44 @@ class BaseStore {
   /**
    * Execute an automatically paged query against the typeIndex for the type configured on this store
    * @param {pageFn} pageFn Paging function that receives each page. If async it will be awaited before the next page is fetched
+   * @param {pageSize} [number] Max page size. Defaults to 100
    * @return {*[]} Item Record Array
    * @memberof BaseStore
+   * @deprecated `queryByPage` provides a more generic method for paging
    */
   async forEachPage(pageFn, pageSize = 100) {
-    const typeIndex = this[_dynamo][_typeIndex]
-    let lastKey
-
-    do {
-      let dbResult = await this[_dynamo].query({
-        TableName: this.getTableName(),
-        IndexName: typeIndex,
+    return this.queryByPage(
+      {
+        IndexName: this[_dynamo][_typeIndex],
         KeyConditionExpression: '#type = :type',
         ExpressionAttributeNames: { '#type': 'type' },
         ExpressionAttributeValues: { ':type': this[_type] },
         Limit: pageSize,
+      },
+      pageFn
+    )
+  }
+
+  /**
+   * Execute an automatically paged query by processing one page at a time
+   * @param {*} params DynamoDB.DocumentClient query, minus TableName
+   * @param {pageFn} pageFn Paging function that receives each page. If async it will be awaited before the next page is fetched
+   * @return {*[]} Item Record Array
+   * @memberof BaseStore
+   */
+  async queryByPage(params, pageFn) {
+    let lastKey
+
+    do {
+      let dbResult = await this[_dynamo].query({
+        ...params,
+        TableName: this.getTableName(),
         ExclusiveStartKey: lastKey,
       })
 
-      await pageFn(dbResult.Items.map(this.fromDb))
+      const result = await pageFn(dbResult.Items.map(this.fromDb))
+
+      if (result === pageBreak) break
 
       lastKey = dbResult.LastEvaluatedKey
     } while (lastKey)
@@ -420,5 +441,6 @@ module.exports = {
     _idKey,
     _sortKey,
     _delimiter,
+    pageBreak,
   },
 }

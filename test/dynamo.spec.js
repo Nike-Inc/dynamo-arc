@@ -3,7 +3,11 @@
 const test = require('ava')
 const sinon = require('sinon')
 const { stub } = sinon
-const { makeClient, BaseStore } = require('../src/dynamo')
+const {
+  makeClient,
+  BaseStore,
+  storeSymbols: { pageBreak },
+} = require('../src/dynamo')
 
 const testClient = (config) =>
   makeClient({
@@ -374,4 +378,72 @@ test('BaseStore.forEachPage calls dynamo', async (t) => {
   }
 
   t.deepEqual(dynamo.query.firstCall.args[0], expected, 'params')
+})
+
+test('BaseStore.queryByPage calls dynamo', async (t) => {
+  let dynamo = testClient()
+  dynamo.query = stub()
+    .onFirstCall()
+    .resolves({ Items: [{}, {}], LastEvaluatedKey: 'more' })
+    .onSecondCall()
+    .resolves({ Items: [{}] })
+
+  let store = new BaseStore({ dynamo, type: 'test' })
+
+  let params = {
+    IndexName: 'test_index',
+    KeyConditionExpression: '#name = :name',
+    ExpressionAttributeNames: { '#name': 'name' },
+    ExpressionAttributeValues: { ':name': 'test' },
+  }
+
+  let pageStub = stub()
+
+  await store.queryByPage(params, pageStub)
+
+  t.truthy(dynamo.query.called, 'called')
+
+  let expected = {
+    TableName: 'test-table',
+    ExclusiveStartKey: undefined,
+    ...params,
+  }
+
+  t.deepEqual(dynamo.query.firstCall.args[0], expected, 'params')
+  t.deepEqual(dynamo.query.callCount, 2, 'called dynamo twice')
+  t.deepEqual(pageStub.callCount, 2, 'called stub twice')
+})
+
+test('BaseStore.queryByPage breaks early', async (t) => {
+  let dynamo = testClient()
+  dynamo.query = stub()
+    .onFirstCall()
+    .resolves({ Items: [{}, {}], LastEvaluatedKey: 'more' })
+    .onSecondCall()
+    .resolves({ Items: [{}] })
+
+  let store = new BaseStore({ dynamo, type: 'test' })
+
+  let params = {
+    IndexName: 'test_index',
+    KeyConditionExpression: '#name = :name',
+    ExpressionAttributeNames: { '#name': 'name' },
+    ExpressionAttributeValues: { ':name': 'test' },
+  }
+
+  let pageStub = stub().resolves(pageBreak)
+
+  await store.queryByPage(params, pageStub)
+
+  t.truthy(dynamo.query.called, 'called')
+
+  let expected = {
+    TableName: 'test-table',
+    ExclusiveStartKey: undefined,
+    ...params,
+  }
+
+  t.deepEqual(dynamo.query.firstCall.args[0], expected, 'params')
+  t.deepEqual(dynamo.query.callCount, 1, 'called dynamo once')
+  t.deepEqual(pageStub.callCount, 1, 'called stub once')
 })
