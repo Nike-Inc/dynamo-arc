@@ -189,6 +189,16 @@ interface BaseStore<T> {
 
   /** Execute a batchWrite against the configured Dynamo table with automatic paging */
   batchWriteAll(changes: (StoreKey | T)): Promise<DynamoResult>
+
+  /** Execute an automatically paged query by processing one page at a time */
+  async queryByPage(
+    params: QueryAllInput,
+    /** Async function that receives an array of items from the current page. If it resolves `false` paging will stop  */
+    pageFn: (page: T[]) => Promise<void | boolean>
+  ): Promise<void>
+
+  /** Execute an automatically paged query against the typeIndex for the type configured on this store */
+  getAll(): Promise<T[]>
 }
 ```
 

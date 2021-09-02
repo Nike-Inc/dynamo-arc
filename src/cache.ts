@@ -1,6 +1,6 @@
 import { Logger, wrapper } from './logger'
-import { asKey, _ttlField, _dynamo, _logger, _idField, ArcClient, TableKey, DbItem } from './dynamo'
-import { NativeItem } from 'dynamo-butter'
+import { asKey, _logger, _dynamo, TableKey, DbItem } from './store'
+import { _ttlField, _idField, ArcDynamoClient } from './dynamo'
 
 export const defaultCacheTtl = 300000
 const delimiter = ':'
@@ -14,7 +14,7 @@ export interface CacheMetrics {
 }
 
 export interface CacheConfig {
-  dynamo: ArcClient
+  dynamo: ArcDynamoClient
   logger?: unknown
   metrics?: CacheMetrics
 }
@@ -37,7 +37,7 @@ export interface BatchGetKeys extends CacheOptions {
 }
 
 export class Cache {
-  public [_dynamo]: ArcClient
+  public [_dynamo]: ArcDynamoClient
   public [_logger]: Logger
   private metrics: CacheMetrics
 
@@ -62,7 +62,7 @@ export class Cache {
         TableName: this[_dynamo].getTableName(),
         Key: this.asKey(key),
       })
-      .then((r) => r.Item as DbItem)
+      .then((r) => r.Item as DbItem<T>)
       .catch((e) => {
         // This is a cache check, missing is normal
         if (!/resource not found/i.test(e.toString())) {
@@ -71,7 +71,7 @@ export class Cache {
         return null
       })
 
-    const isItemExpired = isExpired(cacheResult || {}, options, ttlField)
+    const isItemExpired = isExpired<T>(cacheResult || {}, options, ttlField)
     if (cacheResult && !isItemExpired) {
       this.metrics.cacheHit(key)
       return cacheResult.data as T
@@ -81,7 +81,7 @@ export class Cache {
     try {
       fnResult = await cacheMissFn()
     } catch (e) {
-      this[_logger].error('error getting cache fn', e.message, e.stack)
+      this[_logger].error('error getting cache fn', (e as Error)?.message, (e as Error)?.stack)
       if (options.allowStale && cacheResult) return cacheResult.data as T
       throw e
     }
@@ -145,7 +145,7 @@ export class Cache {
         return []
       })
     if (cacheResult.length) {
-      const matcher = (dbKey: NativeItem) =>
+      const matcher = (dbKey: TableKey) =>
         keys.findIndex((k) => dbKey[idField] === asKey(this[_dynamo], asDynamoKey(k.id))[idField])
       cacheResult
         // remove expired, using options from original keys input
@@ -176,12 +176,13 @@ export class Cache {
   }
 }
 
-function isExpired(item: NativeItem, options: CacheOptions = {}, ttlField: string) {
+function isExpired<T>(item: DbItem<T>, options: CacheOptions = {}, ttlField: string): boolean {
   // Dynamo stores ttl in seconds
   // Its possible for items not to have a ttl from options.permanent
   // If no ttl then expiration false
-  const isTtlExpired = item[ttlField] && item[ttlField] * 1000 < Date.now()
-  const isStale = options.staleAfter && Date.now() - item.createdOn > options.staleAfter
+  const isTtlExpired = item[ttlField] ? (item[ttlField] as number) * 1000 < Date.now() : false
+  const isStale =
+    (options.staleAfter && Date.now() - (item.createdOn as number) > options.staleAfter) || false
   return isTtlExpired || isStale
 }
 

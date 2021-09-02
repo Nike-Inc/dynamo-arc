@@ -1,17 +1,39 @@
+import { DynamoDBClient, DynamoDBClientConfig, KeysAndAttributes } from '@aws-sdk/client-dynamodb'
 import {
-  up,
-  BatchGetItemOutputNative,
-  BatchWriteItemOutputNative,
-  DynamoButterClient,
-  DynamoDBClientConfig,
-  ButterClientOptions,
-  QueryInputNative,
-  QueryOutputNative,
-  ScanInputNative,
-  WriteRequestNative,
-} from 'dynamo-butter'
+  DynamoDBDocument,
+  QueryCommandInput,
+  QueryCommandOutput,
+  ScanCommandInput,
+  ScanCommandOutput,
+  BatchGetCommandInput,
+  BatchGetCommandOutput,
+  BatchWriteCommandInput,
+  BatchWriteCommandOutput,
+  TranslateConfig,
+} from '@aws-sdk/lib-dynamodb'
+import { HttpHandlerOptions, MetadataBearer } from '@aws-sdk/types'
 
-import { Logger, wrapper } from './logger'
+import { ArcDefaults } from './marshalling'
+
+export type OptionalTableName<T> = Omit<T, 'TableName'> & { TableName?: string | undefined }
+
+export interface QueryAllInput extends OptionalTableName<QueryCommandInput> {
+  QueryLimit?: number
+  ItemLimit?: number
+}
+
+export interface ScanAllInput extends OptionalTableName<ScanCommandInput> {
+  ScanLimit?: number
+  ItemLimit?: number
+}
+
+export interface BatchGetItemAllInput extends BatchGetCommandInput {
+  PageSize?: number
+}
+
+export interface BatchWriteItemAllInput extends BatchWriteCommandInput {
+  PageSize?: number
+}
 
 // Client Fields
 const _tableName = Symbol('_tableName')
@@ -20,22 +42,6 @@ const _idField = Symbol('_idField')
 const _sortField = Symbol('_sortField')
 const _ttlField = Symbol('_ttlField')
 
-// Store Fields
-const _type = Symbol('_type')
-const _dynamo = Symbol('_dynamo')
-const _logger = Symbol('_logger')
-const _idKey = Symbol('_idKey')
-const _sortKey = Symbol('_sortKey')
-const _delimiter = Symbol('_delimiter')
-
-// Store Symbols
-export { _type }
-export { _dynamo }
-export { _logger }
-export { _idKey }
-export { _sortKey }
-export { _delimiter }
-
 // Client Symbols
 export { _tableName }
 export { _typeIndex }
@@ -43,34 +49,44 @@ export { _idField }
 export { _sortField }
 export { _ttlField }
 
-export interface ClientConfig {
-  dynamoConfig: DynamoDBClientConfig
-  butterConfig: ButterClientOptions
-  tableConfig: {
-    tableName: string
-    idField?: string
-    sortField?: string
-    typeIndex?: string
-    ttlField?: string
-    hasTtlField?: boolean
-    hasSortField?: boolean
-  }
-}
-
-export interface ArcClient extends DynamoButterClient {
-  [_tableName]: string
+export interface ArcDynamoClient extends DynamoDBDocument {
+  queryAll(params: QueryAllInput, options?: HttpHandlerOptions): Promise<QueryCommandOutput>
+  scanAll(params: ScanAllInput, options?: HttpHandlerOptions): Promise<ScanCommandOutput>
+  batchGetAll(
+    params: BatchGetItemAllInput,
+    options?: HttpHandlerOptions
+  ): Promise<BatchGetCommandOutput>
+  batchWriteAll(
+    params: BatchWriteItemAllInput,
+    options?: HttpHandlerOptions
+  ): Promise<BatchWriteCommandOutput>
+  getTableName: () => string
   [_tableName]: string
   [_typeIndex]: string
   [_idField]: string
-  [_sortField]?: string
-  [_ttlField]?: string
-  getTableName: () => string
+  [_sortField]: string | undefined
+  [_ttlField]: string | undefined
+  // queryByPage<T>(
+  //   args: QueryAllInput,
+  //   pageFn: (page: T[]) => Promise<void | boolean>,
+  //   options?: HttpHandlerOptions
+  // ): Promise<void>
 }
 
-export function makeClient({
-  dynamoConfig,
-  butterConfig,
-  tableConfig: {
+export interface ArcConfig {
+  tableName: string
+  idField?: string
+  sortField?: string
+  typeIndex?: string
+  ttlField?: string
+  hasTtlField?: boolean
+  hasSortField?: boolean
+  clientConfig?: DynamoDBClientConfig
+  translateConfig?: TranslateConfig
+}
+
+export function makeClient(
+  {
     tableName,
     idField = 'id',
     sortField = 'sort_key',
@@ -78,366 +94,245 @@ export function makeClient({
     ttlField = 'ttl',
     hasTtlField = true,
     hasSortField = true,
-  },
-}: ClientConfig): ArcClient {
-  if (!dynamoConfig) throw new Error('"dynamoConfig" is required')
-  if (!dynamoConfig.region) throw new Error('"dynamoConfig.region" is required')
-  if (!tableName) throw new Error('"tableConfig.tableName" is required')
+    clientConfig,
+    translateConfig = ArcDefaults,
+  }: ArcConfig,
+  client?: DynamoDBClient
+): ArcDynamoClient {
+  if (!tableName) throw new Error('"config.tableName" is required')
+  if (!client && !clientConfig) {
+    throw new Error(
+      'Must provide either a client parameter or "config.clientConfig" with at least a "region"'
+    )
+  }
 
-  const client = up(dynamoConfig, butterConfig) as ArcClient
-  client[_tableName] = tableName
-  client[_typeIndex] = typeIndex
-  client[_idField] = idField
-  client[_sortField] = hasSortField ? sortField : undefined
-  client[_ttlField] = hasTtlField ? ttlField : undefined
-  client.getTableName = () => client[_tableName]
-  return client
+  const dynamo: ArcDynamoClient = client
+    ? (client as ArcDynamoClient)
+    : // (this check is made above)
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      (DynamoDBDocument.from(new DynamoDBClient(clientConfig!), translateConfig) as ArcDynamoClient)
+
+  dynamo.queryAll = queryAll
+  dynamo.scanAll = scanAll
+  dynamo.batchGetAll = batchGetAll
+  dynamo.batchWriteAll = batchWriteAll
+
+  dynamo[_tableName] = tableName
+  dynamo[_typeIndex] = typeIndex
+  dynamo[_idField] = idField
+  dynamo[_sortField] = hasSortField ? sortField : undefined
+  dynamo[_ttlField] = hasTtlField ? ttlField : undefined
+  dynamo.getTableName = () => dynamo[_tableName]
+
+  return dynamo as ArcDynamoClient
 }
-export interface BaseStoreConfig<T> {
-  logger?: unknown
-  dynamo: ArcClient
-  type: string
-  idKey?: keyof T & string
-  sortKey?: (keyof T & string) | undefined
-  delimiter?: string
-}
 
-export class BaseStore<T> {
-  public [_type]: string
-  public [_dynamo]: ArcClient
-  public [_logger]: Logger
-  public [_idKey]: keyof T & string
-  public [_sortKey]?: (keyof T & string) | undefined
-  public [_delimiter]: string
+async function queryAll(
+  this: ArcDynamoClient,
+  params: QueryAllInput,
+  options?: HttpHandlerOptions
+): Promise<QueryCommandOutput> {
+  params = { ...params }
+  let result: QueryCommandOutput | undefined = undefined
+  const queryLimit = params.QueryLimit
+  const itemLimit = params.ItemLimit
+  delete params.QueryLimit
+  delete params.ItemLimit
 
-  constructor({ logger, dynamo, type, sortKey, idKey, delimiter = ':' }: BaseStoreConfig<T>) {
-    if (!idKey) {
-      throw new Error('"idKey" is required')
-    }
-
-    this[_type] = type
-    this[_dynamo] = dynamo
-    this[_logger] = wrapper(logger)
-    this[_idKey] = idKey
-    this[_sortKey] = sortKey
-    this[_delimiter] = delimiter
-  }
-
-  /** Get the name of the table configured on the dynamo client */
-  getTableName(): string {
-    return this[_dynamo].getTableName()
-  }
-
-  /**
-   * Join id segments together with the configured delimiter
-   * @param {string[]} idParts N-arity id segments
-   */
-  join(...idParts: string[]): string {
-    return idParts.join(this[_delimiter])
-  }
-
-  /**
-   * Create the ID field of this type by joining it to the store's configured TYPE
-   * @param {string[]} ids N-ary id segments to convert into an ID key
-   */
-  typeKey(...id: string[]): string {
-    return this.join(this[_type], ...id)
-  }
-
-  /** Creates the Key object used by dynamo. Includes a sort key if configured on this store */
-  asKey(id: string, sortKey?: string): TableKey {
-    return asKey(this[_dynamo], this.typeKey(id), sortKey)
-  }
-
-  /** Returns the Key object used by dynamo by extracting it from a the JS item object. Useful for building batch lists */
-  getKey(item: T): TableKey {
-    // The "as unknown as string" hack allows us to pull the keys out of the object
-    // Typescript cannot see it, but we've already verified that these properties exist
-    // In the generic types "keyof" constraints
-    // This is verified in the baseStore.types.ts test
-    // This should be replaced as soon as a type-safe constraint solution can be found
-    return asKey(
-      this[_dynamo],
-      this.typeKey((item[this[_idKey]] as unknown) as string),
-      this[_sortKey] ? ((item[this[_sortKey] as keyof T] as unknown) as string) : undefined
-    )
-  }
-
-  /** Convert the DynamoDB record back into the originally stored JS object */
-  fromDb(item?: DbItem): T | null {
-    if (!item || !item.data) return null
-    const result = item.data as T
-    return result
-  }
-
-  /** Convert a plain JS object into a DynamoDB record */
-  toDb(item: T): DbItem {
-    const id = (item[this[_idKey]] as unknown) as string
-    const data = { ...item }
-
-    const dbItem = {
-      ...this.getKey(item),
-      type: this[_type],
-      // This is to make it easier to find in the dynamo console
-      typeId: id,
-      createdOn: (item as DbItem).createdOn,
-      updatedOn: Date.now(),
-      data,
-    }
-
-    return dbItem
-  }
-
-  /** Get a keyed item from Dynamo */
-  async get(id: string, sortKey?: string): Promise<T | null> {
-    const response = await this[_dynamo].get({
-      TableName: this.getTableName(),
-      Key: this.asKey(id, sortKey),
-    })
-    return this.fromDb(response.Item)
-  }
-
-  /** Create or Update the item in Dynamo */
-  async put(item: T): Promise<T> {
-    await this[_dynamo].put({
-      TableName: this.getTableName(),
-      Item: this.toDb(item),
-    })
-    return item
-  }
-
-  /** Put all items */
-  async putAll(items: T[]): Promise<void> {
-    await this.batchWriteAll(
-      items.map((item) => ({
-        PutRequest: { Item: this.toDb(item) },
-      }))
-    )
-  }
-
-  /** Delete the item from Dynamo matching the provided key */
-  async delete(id: string, sortKey?: string): Promise<void> {
-    await this[_dynamo].delete({
-      TableName: this.getTableName(),
-      Key: this.asKey(id, sortKey),
-    })
-  }
-
-  /** Delete all items */
-  async deleteAll(items: T[]): Promise<void> {
-    await this.batchWriteAll(
-      items.map((item) => ({
-        DeleteRequest: { Key: this.getKey(item) },
-      }))
-    )
-  }
-
-  /** Execute a query against the configured Dynamo table */
-  async query(params: QueryInput): Promise<T[]> {
-    const response = await this[_dynamo].query({
-      TableName: this.getTableName(),
-      ...params,
-    })
-
-    if (!response?.Items?.length) return []
-
-    return response.Items.map(this.fromDb) as T[]
-  }
-
-  /**
-   * Execute a query against the configured Dynamo table with automatic paging, mapped through fromDb()
-   * @param {*} params DynamoDB.DocumentClient query, minus TableName
-   */
-  async queryAll(params: QueryInput): Promise<T[]> {
-    const response = await this[_dynamo].queryAll({
-      TableName: this.getTableName(),
-      ...params,
-    })
-
-    if (!response?.Items?.length) return []
-
-    return response.Items.map(this.fromDb) as T[]
-  }
-
-  /**
-   * Execute a scan against the configured Dynamo table
-   * @param {*} params DynamoDB.DocumentClient scan, minus TableName
-   * @return {*} DynamoDB.DocumentClient scan response
-   */
-  async scan(params: ScanInput): Promise<T[]> {
-    const response = await this[_dynamo].scan({
-      TableName: this.getTableName(),
-      ...params,
-    })
-
-    if (!response?.Items?.length) return []
-
-    return response.Items.map(this.fromDb) as T[]
-  }
-
-  /**
-   * Execute a scan against the configured Dynamo table with automatic paging, mapped through fromDb()
-   * @param {*} params DynamoDB.DocumentClient scan, minus TableName
-   * @return {*[]} Item Record Array
-   */
-  async scanAll(params: ScanInput): Promise<T[]> {
-    const response = await this[_dynamo].scanAll({
-      TableName: this.getTableName(),
-      ...params,
-    })
-
-    if (!response?.Items?.length) return []
-
-    return response.Items.map(this.fromDb) as T[]
-  }
-
-  /**
-   * Execute a batchGet against the configured Dynamo table
-   * @param {*[]} keys Keys to pass to the BatchGet.RequestItems params. Must by type-cast with BaseStore.asKey()
-   * @return {*} DynamoDB.DocumentClient BatchGet response
-   */
-  async batchGet(keys: TableKey[]): Promise<BatchGetItemOutputNative> {
-    if (!keys || !Array.isArray(keys)) throw new Error('"keys" parameter must be an array')
-    if (!keys.length)
-      return {
-        Responses: { [this.getTableName()]: [] },
-      }
-    return this[_dynamo].batchGet({
-      RequestItems: {
-        [this.getTableName()]: {
-          Keys: keys,
-        },
-      },
-    })
-  }
-
-  /**
-   * Execute a batchGet against the configured Dynamo table with automatic paging, mapped through fromDb()
-   * @param {*[]} keys Keys to pass to the BatchGet.RequestItems params. Must by type-cast with BaseStore.asKey()
-   * @return {*[]} Item Record Array
-   */
-  async batchGetAll(keys: TableKey[]): Promise<T[]> {
-    if (!keys || !Array.isArray(keys)) throw new Error('"keys" parameter must be an array')
-    if (!keys.length) return []
-    const response = await this[_dynamo].batchGetAll({
-      RequestItems: {
-        [this.getTableName()]: {
-          Keys: keys,
-        },
-      },
-    })
-
-    if (!response?.Responses?.[this.getTableName()]?.length) return []
-
-    return response.Responses[this.getTableName()].map(this.fromDb) as T[]
-  }
-
-  /**
-   * Execute a batchWrite against the configured Dynamo table
-   * @param {*[]} changes Changes to pass to the BatchWrite.RequestItems params. Must by type-cast with BaseStore.asKey() for DeleteRequest or BaseStore.toDb() for PutRequest
-   * @return {*} DynamoDB.DocumentClient BatchWrite response
-   */
-  async batchWrite(changes: WriteRequestNative[]): Promise<BatchWriteItemOutputNative> {
-    if (!changes || !Array.isArray(changes)) throw new Error('"changes" parameter must be an array')
-    if (!changes.length) return {}
-    return this[_dynamo].batchWrite({
-      RequestItems: {
-        [this.getTableName()]: changes,
-      },
-    })
-  }
-
-  /**
-   * Execute a batchWrite against the configured Dynamo table with automatic paging, mapped through fromDb()
-   * @param {*[]} changes Changes to pass to the BatchWrite.RequestItems params. Must by type-cast with BaseStore.asKey() for DeleteRequest or BaseStore.toDb() for PutRequest
-   * @return {*} DynamoDB.DocumentClient BatchWrite response
-   */
-  async batchWriteAll(changes: WriteRequestNative[]): Promise<void> {
-    if (!changes || !Array.isArray(changes)) throw new Error('"changes" parameter must be an array')
-    if (!changes.length) return
-    return this[_dynamo].batchWriteAll({
-      RequestItems: {
-        [this.getTableName()]: changes,
-      },
-    })
-  }
-
-  /**
-   * Execute an automatically paged query against the typeIndex for the type configured on this store
-   * @return {*[]} Item Record Array
-   */
-  async getAll(): Promise<T[]> {
-    const typeIndex = this[_dynamo][_typeIndex]
-    const response = await this[_dynamo].queryAll({
-      TableName: this.getTableName(),
-      IndexName: typeIndex,
-      KeyConditionExpression: '#type = :type',
-      ExpressionAttributeNames: { '#type': 'type' },
-      ExpressionAttributeValues: { ':type': this[_type] },
-    })
-
-    if (!response?.Items?.length) return []
-
-    return response.Items.map(this.fromDb) as T[]
-  }
-
-  /**
-   * @callback pageFn
-   * @param {*[]} pageItems Array of Item Records for the current page
-   * @return {Promise.<*>}
-   */
-
-  /**
-   * Execute an automatically paged query against the typeIndex for the type configured on this store
-   * @param {pageFn} pageFn Paging function that receives each page. If async it will be awaited before the next page is fetched
-   * @return {*[]} Item Record Array
-   */
-  async forEachPage(pageFn: (items: T[]) => Promise<void>, pageSize = 100): Promise<void> {
-    const typeIndex = this[_dynamo][_typeIndex]
-    let lastKey
-
-    do {
-      const dbResult: QueryOutputNative = await this[_dynamo].query({
+  // The double cast is to satisfy ts here, so it can be used in loop before its first declaration
+  let response: QueryCommandOutput = ({} as unknown) as QueryCommandOutput
+  let workRemaining
+  do {
+    response = await this.query(
+      {
         TableName: this.getTableName(),
-        IndexName: typeIndex,
-        KeyConditionExpression: '#type = :type',
-        ExpressionAttributeNames: { '#type': 'type' },
-        ExpressionAttributeValues: { ':type': this[_type] },
-        Limit: pageSize,
-        ExclusiveStartKey: lastKey,
+        ...params,
+        ExclusiveStartKey: response?.LastEvaluatedKey,
+      },
+      options
+    )
+    // First run
+    if (result === undefined) {
+      result = response
+    } else {
+      result.Count = optionalAdd(result.Count, response.Count)
+      result.ScannedCount = optionalAdd(result.ScannedCount, response.ScannedCount)
+      result.Items = (result?.Items || []).concat(response?.Items || [])
+      result.LastEvaluatedKey = response.LastEvaluatedKey
+    }
+    workRemaining =
+      response.LastEvaluatedKey &&
+      (queryLimit === undefined || result?.ScannedCount || 0 < queryLimit) &&
+      (itemLimit === undefined || result?.Count || 0 < itemLimit)
+  } while (workRemaining)
+
+  return result
+}
+
+async function scanAll(
+  this: ArcDynamoClient,
+  params: ScanAllInput,
+  options?: HttpHandlerOptions
+): Promise<ScanCommandOutput> {
+  params = { ...params }
+  let result: ScanCommandOutput | undefined = undefined
+  const scanLimit = params.ScanLimit
+  const itemLimit = params.ItemLimit
+  delete params.ScanLimit
+  delete params.ItemLimit
+
+  // The double cast is to satisfy ts here, so it can be used in loop before its first declaration
+  let response: ScanCommandOutput = ({} as unknown) as ScanCommandOutput
+  let workRemaining
+  do {
+    response = await this.scan(
+      {
+        TableName: this.getTableName(),
+        ...params,
+        ExclusiveStartKey: response.LastEvaluatedKey,
+      },
+      options
+    )
+    // First run
+    if (result === undefined) {
+      result = response
+    } else {
+      result.Count = optionalAdd(result.Count, response.Count)
+      result.ScannedCount = optionalAdd(result.ScannedCount, response.ScannedCount)
+      result.Items = (result?.Items || []).concat(response?.Items || [])
+      result.LastEvaluatedKey = response.LastEvaluatedKey
+    }
+    workRemaining =
+      response.LastEvaluatedKey &&
+      (scanLimit === undefined || result?.ScannedCount || 0 < scanLimit) &&
+      (itemLimit === undefined || result?.Count || 0 < itemLimit)
+  } while (workRemaining)
+
+  return result
+}
+
+async function batchGetAll(
+  this: ArcDynamoClient,
+  params: BatchGetItemAllInput,
+  options?: HttpHandlerOptions
+): Promise<BatchGetCommandOutput> {
+  let metadata: MetadataBearer['$metadata'] = {}
+  const requestPool: BatchGetItemAllInput['RequestItems'] = {
+    ...params.RequestItems,
+  }
+
+  const pageSize = params.PageSize
+  delete params.PageSize
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const responses: { [key: string]: any[] } = {}
+
+  while (true) {
+    const batch = sliceGetBatch(requestPool, pageSize)
+    if (batch === undefined || Object.keys(batch).length === 0) break
+    const response = await this.batchGet(
+      {
+        ...params,
+        RequestItems: batch,
+      },
+      options
+    )
+    metadata = response.$metadata
+    if (response.Responses) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      eachObj(response.Responses, (table: string, items: any[]) => {
+        if (!responses[table]) responses[table] = []
+        responses[table] = responses[table].concat(items)
       })
+    }
+    const unprocessed =
+      response.UnprocessedKeys && Object.keys(response.UnprocessedKeys).length !== 0
+        ? response.UnprocessedKeys
+        : null
+    if (!unprocessed) continue
+    eachObj(unprocessed, (table: string, items: KeysAndAttributes) => {
+      if (!items.Keys) return
+      requestPool?.[table].Keys?.push(...items.Keys)
+    })
+  }
 
-      if (dbResult?.Items?.length) {
-        await pageFn(dbResult.Items.map(this.fromDb) as T[])
-      }
+  return { Responses: responses, $metadata: metadata }
+}
 
-      lastKey = dbResult.LastEvaluatedKey
-    } while (lastKey)
+async function batchWriteAll(
+  this: ArcDynamoClient,
+  params: BatchWriteItemAllInput,
+  options?: HttpHandlerOptions
+): Promise<BatchWriteCommandOutput> {
+  const requestPool = Object.assign({}, params.RequestItems)
+  const pageSize = params.PageSize
+  delete params.PageSize
+
+  while (true) {
+    const batch = sliceWriteBatch(requestPool, pageSize)
+    if (batch === undefined || Object.keys(batch).length === 0) return { $metadata: {} }
+    const response = await this.batchWrite(
+      {
+        ...params,
+        RequestItems: batch,
+      },
+      options
+    )
+    const unprocessed =
+      response.UnprocessedItems && Object.keys(response.UnprocessedItems).length !== 0
+        ? response.UnprocessedItems
+        : null
+    if (!unprocessed) continue
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    eachObj(unprocessed, (table: string, items: any[]) => {
+      requestPool[table] = requestPool[table].concat(items)
+    })
   }
 }
 
-export function asKey(dynamo: ArcClient, id: string, sortKey?: string): { [key: string]: string } {
-  const idField = dynamo[_idField]
-  const sortField = dynamo[_sortField]
-
-  const key = { [idField]: id }
-  if (sortField) key[sortField] = sortKey ?? '_'
-
-  return key
+function sliceGetBatch(pool: BatchGetCommandInput['RequestItems'], pageSize = 25) {
+  if (!pool) return
+  let requestCount = 0
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const batch: { [key: string]: any } = {}
+  // eslint-disable-next-line @typescript-eslint/ban-types
+  const tables = Object.keys(pool as {})
+  if (tables.length === 0) return
+  tables.forEach((tableName) => {
+    const table = pool[tableName]
+    if (!table?.Keys?.length || requestCount === pageSize) return
+    const keys = table.Keys.splice(0, pageSize - requestCount)
+    if (keys.length === 0) return
+    requestCount += keys.length
+    if (!batch[tableName]) batch[tableName] = Object.assign({}, table, { Keys: [] })
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    batch[tableName].Keys = batch![tableName].Keys!.concat(keys)
+  })
+  return batch
 }
 
-export interface TableKey {
-  [key: string]: string
+function sliceWriteBatch(pool: BatchWriteItemAllInput['RequestItems'], pageSize = 25) {
+  if (!pool) return
+  let requestCount = 0
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const batch: { [key: string]: any[] } = {}
+  // eslint-disable-next-line @typescript-eslint/ban-types
+  const tables = Object.keys(pool as {})
+  if (tables.length === 0) return
+  tables.forEach((tableName) => {
+    const table = pool[tableName]
+    if (requestCount === pageSize || !table.length) return
+    const items = table.splice(0, pageSize - requestCount)
+    if (items.length === 0) return
+    requestCount += items.length
+    batch[tableName] = batch[tableName] !== undefined ? batch[tableName].concat(items) : items
+  })
+  return batch
 }
 
-export interface DbItem {
-  data?: unknown
-  createdOn?: Date | number
+function eachObj<T extends { [key: string]: K }, K>(obj: T, func: (key: string, val: K) => void) {
+  Object.entries(obj).forEach(([key, val]) => func(key, val))
 }
 
-export { BatchGetItemOutputNative }
-export { BatchWriteItemOutputNative }
-export { WriteRequestNative }
-
-export type QueryInput = Omit<QueryInputNative, 'TableName'>
-export type ScanInput = Omit<ScanInputNative, 'TableName'>
+function optionalAdd(...args: (number | undefined)[]): number {
+  return args.reduce((sum: number, arg: number | undefined) => (sum += arg || 0), 0)
+}

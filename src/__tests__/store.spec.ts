@@ -1,56 +1,62 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
-'use strict'
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import { describe, it, expect } from '@jest/globals'
 
-const { describe, expect, it } = require('@jest/globals')
+import { Store, StoreConfig } from '../store'
 
-const sinon = require('sinon')
-const { makeClient, BaseStore } = require('../dynamo')
+interface TestItem {
+  root: string
+  owner: string
+}
 
-const { stub } = sinon
-const testClient = (config) =>
-  makeClient({
-    dynamoConfig: { region: 'us-west-2' },
-    tableConfig: { tableName: 'test-table', ...config },
+describe('Store', () => {
+  it('allows subclassing', () => {
+    class TestStore extends Store<TestItem> {
+      constructor({ dynamo }: StoreConfig<TestItem>) {
+        super({ dynamo, type: '_TESTITEM_', idKey: 'root', sortKey: 'owner' })
+      }
+    }
+    expect(TestStore).toBeDefined()
   })
-
-describe('makeClient', () => {
-  it('requires valid config', () => {
-    expect(() => makeClient()).toThrowError(/destructure.+?dynamoConfig/)
-    expect(() => makeClient({ tableConfig: {} })).toThrowError(/dynamoConfig.+?required/)
-    expect(() => makeClient({ dynamoConfig: {}, tableConfig: {} })).toThrowError(
-      /region.+?required/
-    )
-    expect(() =>
-      makeClient({ dynamoConfig: { region: 'us-west-2' }, tableConfig: {} })
-    ).toThrowError(/tableConfig\.tableName.+?required/)
+  it('throws if subclass has bad idKey', () => {
+    class TestStore extends Store<TestItem> {
+      constructor({ dynamo }: StoreConfig<TestItem>) {
+        // @ts-expect-error Type '"name"' is not assignable to type '"root" | "owner"'
+        super({ dynamo, type: '_TESTITEM_', idKey: 'name' })
+      }
+    }
+    expect(TestStore).toBeDefined()
   })
-
-  it('returns valid client', () => {
-    const client = testClient()
-    expect(client.getTableName()).toBe('test-table')
+  it('throws if subclass has bad sortKey', () => {
+    class TestStore extends Store<TestItem> {
+      constructor({ dynamo }: StoreConfig<TestItem>) {
+        // @ts-expect-error Type '"name"' is not assignable to type '"root" | "owner"'
+        super({ dynamo, type: '_TESTITEM_', idKey: 'root', sortKey: 'name' })
+      }
+    }
+    expect(TestStore).toBeDefined()
   })
 })
 
-describe('BaseStore', () => {
+describe('Store', () => {
   it('typeKey joins type', () => {
     const dynamo = testClient()
-    const store = new BaseStore({ dynamo, type: 'test', idKey: 'id' })
+    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
     expect(store.typeKey('1')).toBe('test:1')
   })
 
   it('getTableName returns tableName', () => {
     const dynamo = testClient()
-    const store = new BaseStore({ dynamo, type: 'test', idKey: 'id' })
+    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
     expect(store.getTableName()).toBe('test-table')
   })
 
   it('asKey returns key object', () => {
-    let dynamo = testClient()
-    let store = new BaseStore({ dynamo, type: 'test', idKey: 'id' })
+    const dynamo = testClient()
+    let store = new Store({ dynamo, type: 'test', idKey: 'id' })
     expect(store.asKey('1')).toEqual({ id: 'test:1', sort_key: '_' })
     expect(store.asKey('1', '2')).toEqual({ id: 'test:1', sort_key: '2' })
 
-    store = new BaseStore({
+    store = new Store({
       dynamo: testClient({ hasSortField: false }),
       type: 'test',
       idKey: 'id',
@@ -59,13 +65,13 @@ describe('BaseStore', () => {
   })
 
   it('getKey returns key object', () => {
-    let dynamo = testClient()
-    let store = new BaseStore({ dynamo, type: 'test', idKey: 'id' })
+    const dynamo = testClient()
+    let store = new Store({ dynamo, type: 'test', idKey: 'id' })
     expect(store.getKey({ id: '1' })).toEqual({ id: 'test:1', sort_key: '_' })
     expect(store.getKey({ id: '1', extra: 'removed' })).toEqual({ id: 'test:1', sort_key: '_' })
     expect(store.getKey({ id: '1', sort_key: '2' })).toEqual({ id: 'test:1', sort_key: '_' })
 
-    store = new BaseStore({
+    store = new Store({
       dynamo: testClient({ hasSortField: false }),
       type: 'test',
       idKey: 'id',
@@ -74,13 +80,13 @@ describe('BaseStore', () => {
   })
 
   it('getKey returns key object with custom sort', () => {
-    let dynamo = testClient()
-    let store = new BaseStore({ dynamo, type: 'test', sortKey: 'name', idKey: 'id' })
+    const dynamo = testClient()
+    let store = new Store({ dynamo, type: 'test', sortKey: 'name', idKey: 'id' })
     expect(store.getKey({ id: '1' })).toEqual({ id: 'test:1', sort_key: '_' })
     expect(store.getKey({ id: '1', extra: 'removed' })).toEqual({ id: 'test:1', sort_key: '_' })
     expect(store.getKey({ id: '1', name: '2' })).toEqual({ id: 'test:1', sort_key: '2' })
 
-    store = new BaseStore({
+    store = new Store({
       dynamo: testClient({ hasSortField: false }),
       type: 'test',
       idKey: 'id',
@@ -88,26 +94,26 @@ describe('BaseStore', () => {
     expect(store.asKey('1')).toEqual({ id: 'test:1' })
   })
 
-  it('BaseStore fromDb handles empty item', () => {
-    let dynamo = testClient()
-    let store = new BaseStore({ dynamo, type: 'test', idKey: 'id' })
+  it('Store fromDb handles empty item', () => {
+    const dynamo = testClient()
+    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
     expect(store.fromDb()).toBe(null)
     expect(store.fromDb(null)).toBe(null)
     expect(store.fromDb({})).toBe(null)
     expect(store.fromDb({ data: null })).toBe(null)
   })
 
-  it('BaseStore fromDb unwraps data', () => {
-    let dynamo = testClient()
-    let store = new BaseStore({ dynamo, type: 'test', idKey: 'id' })
-    let thing = {}
+  it('Store fromDb unwraps data', () => {
+    const dynamo = testClient()
+    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
+    const thing = {}
     expect(store.fromDb({ data: thing })).toBe(thing)
   })
 
-  it('BaseStore toDb wraps input', () => {
-    let dynamo = testClient()
-    let store = new BaseStore({ dynamo, type: 'test', idKey: 'id' })
-    let item = {
+  it('Store toDb wraps input', () => {
+    const dynamo = testClient()
+    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
+    const item = {
       id: 'id',
       name: 'test',
     }
@@ -125,10 +131,10 @@ describe('BaseStore', () => {
     })
   })
 
-  it('BaseStore calls dynamo for get', async () => {
-    let dynamo = testClient()
+  it('Store calls dynamo for get', async () => {
+    const dynamo = testClient()
     dynamo.get = stub()
-    let store = new BaseStore({ dynamo, type: 'test', idKey: 'id' })
+    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
     dynamo.get.resolves({})
     await store.get('id')
     expect(dynamo.get.called).toBeTruthy()
@@ -138,10 +144,10 @@ describe('BaseStore', () => {
     })
   })
 
-  it('BaseStore calls dynamo for put', async () => {
-    let dynamo = testClient()
+  it('Store calls dynamo for put', async () => {
+    const dynamo = testClient()
     dynamo.put = stub()
-    let store = new BaseStore({ dynamo, type: 'test', idKey: 'id' })
+    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
     dynamo.put.resolves({})
     await store.put({ id: 'id', name: 'test' })
     expect(dynamo.put.called).toBeTruthy()
@@ -149,10 +155,10 @@ describe('BaseStore', () => {
     expect(dynamo.put.firstCall.args[0].Item.data.name).toBe('test')
   })
 
-  it('BaseStore calls dynamo for delete', async () => {
-    let dynamo = testClient()
+  it('Store calls dynamo for delete', async () => {
+    const dynamo = testClient()
     dynamo.delete = stub()
-    let store = new BaseStore({ dynamo, type: 'test', idKey: 'id' })
+    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
     dynamo.delete.resolves({})
     await store.delete('id')
     expect(dynamo.delete.called).toBeTruthy()
@@ -163,16 +169,16 @@ describe('BaseStore', () => {
   })
 
   it('query calls dynamo', async () => {
-    let dynamo = testClient()
+    const dynamo = testClient()
     dynamo.query = stub().resolves({ Items: [] })
-    let store = new BaseStore({ dynamo, type: 'test', idKey: 'id' })
+    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
     await store.query({
       IndexName: 'type-index',
       KeyConditionExpression: '#type = :type',
       ExpressionAttributeNames: { '#type': 'type' },
       ExpressionAttributeValues: { ':type': 'test' },
     })
-    let expected = {
+    const expected = {
       TableName: 'test-table',
       IndexName: 'type-index',
       KeyConditionExpression: '#type = :type',
@@ -184,16 +190,16 @@ describe('BaseStore', () => {
   })
 
   it('scan calls dynamo', async () => {
-    let dynamo = testClient()
+    const dynamo = testClient()
     dynamo.scan = stub().resolves({ Items: [] })
-    let store = new BaseStore({ dynamo, type: 'test', idKey: 'id' })
-    let username = 'tester'
+    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
+    const username = 'tester'
     await store.scan({
       FilterExpression: 'contains(#username, :username)',
       ExpressionAttributeNames: { '#username': 'username' },
       ExpressionAttributeValues: { ':username': username.toLowerCase() },
     })
-    let expected = {
+    const expected = {
       TableName: 'test-table',
       FilterExpression: 'contains(#username, :username)',
       ExpressionAttributeNames: { '#username': 'username' },
@@ -204,12 +210,12 @@ describe('BaseStore', () => {
   })
 
   it('batchGet calls dynamo', async () => {
-    let dynamo = testClient()
+    const dynamo = testClient()
     dynamo.batchGet = stub().resolves({ Items: [] })
-    let store = new BaseStore({ dynamo, type: 'test', idKey: 'id' })
-    let item = store.toDb({ id: '1' })
+    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
+    const item = store.toDb({ id: '1' })
     await store.batchGet([store.asKey(item)])
-    let expected = {
+    const expected = {
       RequestItems: {
         [dynamo.getTableName()]: {
           Keys: [store.asKey(item)],
@@ -221,12 +227,12 @@ describe('BaseStore', () => {
   })
 
   it('batchWrite calls dynamo', async () => {
-    let dynamo = testClient()
+    const dynamo = testClient()
     dynamo.batchWrite = stub().resolves({ Items: [] })
-    let store = new BaseStore({ dynamo, type: 'test', idKey: 'id' })
-    let item = store.toDb({ id: '1' })
+    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
+    const item = store.toDb({ id: '1' })
     await store.batchWrite([{ PutRequest: { Item: item } }])
-    let expected = {
+    const expected = {
       RequestItems: {
         [dynamo.getTableName()]: [{ PutRequest: { Item: item } }],
       },
@@ -236,16 +242,16 @@ describe('BaseStore', () => {
   })
 
   it('queryAll calls dynamo', async () => {
-    let dynamo = testClient()
+    const dynamo = testClient()
     dynamo.queryAll = stub().resolves({ Items: [] })
-    let store = new BaseStore({ dynamo, type: 'test', idKey: 'id' })
+    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
     await store.queryAll({
       IndexName: 'type-index',
       KeyConditionExpression: '#type = :type',
       ExpressionAttributeNames: { '#type': 'type' },
       ExpressionAttributeValues: { ':type': 'test' },
     })
-    let expected = {
+    const expected = {
       TableName: 'test-table',
       IndexName: 'type-index',
       KeyConditionExpression: '#type = :type',
@@ -257,16 +263,16 @@ describe('BaseStore', () => {
   })
 
   it('scanAll calls dynamo', async () => {
-    let dynamo = testClient()
+    const dynamo = testClient()
     dynamo.scanAll = stub().resolves({ Items: [] })
-    let store = new BaseStore({ dynamo, type: 'test', idKey: 'id' })
-    let username = 'tester'
+    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
+    const username = 'tester'
     await store.scanAll({
       FilterExpression: 'contains(#username, :username)',
       ExpressionAttributeNames: { '#username': 'username' },
       ExpressionAttributeValues: { ':username': username.toLowerCase() },
     })
-    let expected = {
+    const expected = {
       TableName: 'test-table',
       FilterExpression: 'contains(#username, :username)',
       ExpressionAttributeNames: { '#username': 'username' },
@@ -277,12 +283,12 @@ describe('BaseStore', () => {
   })
 
   it('batchGetAll calls dynamo', async () => {
-    let dynamo = testClient()
+    const dynamo = testClient()
     dynamo.batchGetAll = stub().resolves({ Responses: { [dynamo.getTableName()]: [] } })
-    let store = new BaseStore({ dynamo, type: 'test', idKey: 'id' })
-    let item = store.toDb({ id: '1' })
+    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
+    const item = store.toDb({ id: '1' })
     await store.batchGetAll([store.asKey(item)])
-    let expected = {
+    const expected = {
       RequestItems: {
         [dynamo.getTableName()]: {
           Keys: [store.asKey(item)],
@@ -294,21 +300,21 @@ describe('BaseStore', () => {
   })
 
   it('batchGetAll returns early when given empty array', async () => {
-    let dynamo = testClient()
+    const dynamo = testClient()
     dynamo.batchGetAll = stub().rejects(new Error('should have avoided call'))
-    let store = new BaseStore({ dynamo, type: 'test', idKey: 'id' })
-    let result = await store.batchGetAll([])
+    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
+    const result = await store.batchGetAll([])
     expect(result).toEqual([])
     expect(dynamo.batchGetAll.called).toBeFalsy()
   })
 
   it('batchWriteAll calls dynamo', async () => {
-    let dynamo = testClient()
+    const dynamo = testClient()
     dynamo.batchWriteAll = stub().resolves({ Items: [] })
-    let store = new BaseStore({ dynamo, type: 'test', idKey: 'id' })
-    let item = store.toDb({ id: '1' })
+    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
+    const item = store.toDb({ id: '1' })
     await store.batchWriteAll([{ PutRequest: { Item: item } }])
-    let expected = {
+    const expected = {
       RequestItems: {
         [dynamo.getTableName()]: [{ PutRequest: { Item: item } }],
       },
@@ -318,20 +324,20 @@ describe('BaseStore', () => {
   })
 
   it('batchWriteAll returns early when given empty array', async () => {
-    let dynamo = testClient()
+    const dynamo = testClient()
     dynamo.batchWriteAll = stub().rejects(new Error('should have avoided call'))
-    let store = new BaseStore({ dynamo, type: 'test', idKey: 'id' })
-    let result = await store.batchWriteAll([])
+    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
+    const result = await store.batchWriteAll([])
     expect(result).toEqual(undefined)
     expect(dynamo.batchWriteAll.called).toBeFalsy()
   })
 
   it('getAll calls dynamo', async () => {
-    let dynamo = testClient()
+    const dynamo = testClient()
     dynamo.queryAll = stub().resolves({ Items: [] })
-    let store = new BaseStore({ dynamo, type: 'test', idKey: 'id' })
+    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
     await store.getAll()
-    let expected = {
+    const expected = {
       TableName: 'test-table',
       IndexName: 'type-index',
       KeyConditionExpression: '#type = :type',
@@ -343,16 +349,16 @@ describe('BaseStore', () => {
   })
 
   it('forEachPage calls dynamo', async () => {
-    let dynamo = testClient()
+    const dynamo = testClient()
     dynamo.query = stub().resolves({ Items: [] })
 
-    let store = new BaseStore({ dynamo, type: 'test', idKey: 'id' })
+    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
 
     await store.forEachPage(stub())
 
     expect(dynamo.query.called).toBeTruthy()
 
-    let expected = {
+    const expected = {
       TableName: 'test-table',
       IndexName: 'type-index',
       KeyConditionExpression: '#type = :type',
