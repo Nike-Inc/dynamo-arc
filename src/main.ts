@@ -2,7 +2,7 @@
 import { _type, _dynamo, _logger, _idKey, _sortKey, _delimiter } from './store'
 import { _tableName, _typeIndex, _idField, _sortField, _ttlField } from './dynamo'
 
-export { Store, StoreConfig, TableKey, DbItem, asKey } from './store'
+export { Store, StoreConfig, BaseStoreConfig, TableKey, DbItem, asKey } from './store'
 export {
   makeClient,
   ArcConfig,

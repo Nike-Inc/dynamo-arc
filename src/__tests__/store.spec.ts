@@ -1,36 +1,65 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { describe, it, expect } from '@jest/globals'
+import { stub, SinonStubbedInstance } from 'sinon'
 
 import { Store, StoreConfig } from '../store'
+import { _ttlField, _idField, _sortField, _typeIndex, ArcDynamoClient, ArcConfig } from '../dynamo'
 
 interface TestItem {
-  root: string
+  id: string
   owner: string
+  name: string
 }
+
+class TestStore extends Store<TestItem> {
+  constructor({ dynamo }: StoreConfig) {
+    super({ dynamo, type: '_TESTITEM_', idKey: 'id', sortKey: 'owner' })
+  }
+}
+
+const testClient = ({ hasSortField = true, sortField = 'sort_key' }: Partial<ArcConfig> = {}) =>
+  ({
+    [_typeIndex]: 'type-index',
+    getTableName: () => 'test-table',
+    [_idField]: 'id',
+    [_ttlField]: 'ttl',
+    [_sortField]: hasSortField ? sortField : undefined,
+    get: stub(),
+    put: stub(),
+    delete: stub(),
+    query: stub(),
+    scan: stub(),
+    batchGet: stub(),
+    batchWrite: stub(),
+    queryAll: stub(),
+    scanAll: stub(),
+    batchGetAll: stub(),
+    batchWriteAll: stub(),
+  } as SinonStubbedInstance<ArcDynamoClient>)
 
 describe('Store', () => {
   it('allows subclassing', () => {
     class TestStore extends Store<TestItem> {
-      constructor({ dynamo }: StoreConfig<TestItem>) {
-        super({ dynamo, type: '_TESTITEM_', idKey: 'root', sortKey: 'owner' })
+      constructor({ dynamo }: StoreConfig) {
+        super({ dynamo, type: '_TESTITEM_', idKey: 'id', sortKey: 'owner' })
       }
     }
     expect(TestStore).toBeDefined()
   })
   it('throws if subclass has bad idKey', () => {
     class TestStore extends Store<TestItem> {
-      constructor({ dynamo }: StoreConfig<TestItem>) {
+      constructor({ dynamo }: StoreConfig) {
         // @ts-expect-error Type '"name"' is not assignable to type '"root" | "owner"'
-        super({ dynamo, type: '_TESTITEM_', idKey: 'name' })
+        super({ dynamo, type: '_TESTITEM_', idKey: 'other' })
       }
     }
     expect(TestStore).toBeDefined()
   })
   it('throws if subclass has bad sortKey', () => {
     class TestStore extends Store<TestItem> {
-      constructor({ dynamo }: StoreConfig<TestItem>) {
+      constructor({ dynamo }: StoreConfig) {
         // @ts-expect-error Type '"name"' is not assignable to type '"root" | "owner"'
-        super({ dynamo, type: '_TESTITEM_', idKey: 'root', sortKey: 'name' })
+        super({ dynamo, type: '_TESTITEM_', idKey: 'root', sortKey: 'bad' })
       }
     }
     expect(TestStore).toBeDefined()
@@ -40,90 +69,108 @@ describe('Store', () => {
 describe('Store', () => {
   it('typeKey joins type', () => {
     const dynamo = testClient()
-    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
-    expect(store.typeKey('1')).toBe('test:1')
+    const store = new TestStore({
+      dynamo: (dynamo as unknown) as ArcDynamoClient,
+    })
+    expect(store.typeKey('1')).toBe('_TESTITEM_:1')
   })
 
   it('getTableName returns tableName', () => {
     const dynamo = testClient()
-    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
+    const store = new TestStore({
+      dynamo: (dynamo as unknown) as ArcDynamoClient,
+    })
     expect(store.getTableName()).toBe('test-table')
   })
 
   it('asKey returns key object', () => {
     const dynamo = testClient()
-    let store = new Store({ dynamo, type: 'test', idKey: 'id' })
-    expect(store.asKey('1')).toEqual({ id: 'test:1', sort_key: '_' })
-    expect(store.asKey('1', '2')).toEqual({ id: 'test:1', sort_key: '2' })
-
-    store = new Store({
-      dynamo: testClient({ hasSortField: false }),
-      type: 'test',
-      idKey: 'id',
+    let store = new TestStore({
+      dynamo: (dynamo as unknown) as ArcDynamoClient,
     })
-    expect(store.asKey('1')).toEqual({ id: 'test:1' })
+    expect(store.asKey('1')).toEqual({ id: '_TESTITEM_:1', sort_key: '_' })
+    expect(store.asKey('1', '2')).toEqual({ id: '_TESTITEM_:1', sort_key: '2' })
+
+    store = new TestStore({
+      dynamo: (testClient({ hasSortField: false }) as unknown) as ArcDynamoClient,
+    })
+    expect(store.asKey('1')).toEqual({ id: '_TESTITEM_:1' })
   })
 
   it('getKey returns key object', () => {
     const dynamo = testClient()
-    let store = new Store({ dynamo, type: 'test', idKey: 'id' })
-    expect(store.getKey({ id: '1' })).toEqual({ id: 'test:1', sort_key: '_' })
-    expect(store.getKey({ id: '1', extra: 'removed' })).toEqual({ id: 'test:1', sort_key: '_' })
-    expect(store.getKey({ id: '1', sort_key: '2' })).toEqual({ id: 'test:1', sort_key: '_' })
-
-    store = new Store({
-      dynamo: testClient({ hasSortField: false }),
-      type: 'test',
-      idKey: 'id',
+    let store = new TestStore({
+      dynamo: (dynamo as unknown) as ArcDynamoClient,
     })
-    expect(store.asKey('1')).toEqual({ id: 'test:1' })
+    expect(store.getKey({ id: '1' })).toEqual({ id: '_TESTITEM_:1', sort_key: '_' })
+    // @ts-expect-error Type Object literal may only specify known properties
+    expect(store.getKey({ id: '1', extra: 'removed' })).toEqual({
+      id: '_TESTITEM_:1',
+      sort_key: '_',
+    })
+    expect(store.getKey({ id: '1', owner: '2' })).toEqual({ id: '_TESTITEM_:1', sort_key: '2' })
+
+    store = new TestStore({
+      dynamo: (testClient({ hasSortField: false }) as unknown) as ArcDynamoClient,
+    })
+    expect(store.asKey('1')).toEqual({ id: '_TESTITEM_:1' })
   })
 
   it('getKey returns key object with custom sort', () => {
     const dynamo = testClient()
-    let store = new Store({ dynamo, type: 'test', sortKey: 'name', idKey: 'id' })
-    expect(store.getKey({ id: '1' })).toEqual({ id: 'test:1', sort_key: '_' })
-    expect(store.getKey({ id: '1', extra: 'removed' })).toEqual({ id: 'test:1', sort_key: '_' })
-    expect(store.getKey({ id: '1', name: '2' })).toEqual({ id: 'test:1', sort_key: '2' })
-
-    store = new Store({
-      dynamo: testClient({ hasSortField: false }),
-      type: 'test',
-      idKey: 'id',
+    let store = new TestStore({
+      dynamo: (dynamo as unknown) as ArcDynamoClient,
     })
-    expect(store.asKey('1')).toEqual({ id: 'test:1' })
+    expect(store.getKey({ id: '1' })).toEqual({ id: '_TESTITEM_:1', sort_key: '_' })
+    // @ts-expect-error Type Object literal may only specify known properties
+    expect(store.getKey({ id: '1', extra: 'removed' })).toEqual({
+      id: '_TESTITEM_:1',
+      sort_key: '_',
+    })
+    expect(store.getKey({ id: '1', owner: '2' })).toEqual({ id: '_TESTITEM_:1', sort_key: '2' })
+
+    store = new TestStore({
+      dynamo: (testClient({ hasSortField: false }) as unknown) as ArcDynamoClient,
+    })
+    expect(store.asKey('1')).toEqual({ id: '_TESTITEM_:1' })
   })
 
   it('Store fromDb handles empty item', () => {
     const dynamo = testClient()
-    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
+    const store = new TestStore({
+      dynamo: (dynamo as unknown) as ArcDynamoClient,
+    })
     expect(store.fromDb()).toBe(null)
-    expect(store.fromDb(null)).toBe(null)
+    expect(store.fromDb(undefined)).toBe(null)
     expect(store.fromDb({})).toBe(null)
-    expect(store.fromDb({ data: null })).toBe(null)
+    expect(store.fromDb({ data: undefined })).toBe(null)
   })
 
   it('Store fromDb unwraps data', () => {
     const dynamo = testClient()
-    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
-    const thing = {}
+    const store = new TestStore({
+      dynamo: (dynamo as unknown) as ArcDynamoClient,
+    })
+    const thing = { id: 'test' } as TestItem
     expect(store.fromDb({ data: thing })).toBe(thing)
   })
 
   it('Store toDb wraps input', () => {
     const dynamo = testClient()
-    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
+    const store = new TestStore({
+      dynamo: (dynamo as unknown) as ArcDynamoClient,
+    })
     const item = {
       id: 'id',
       name: 'test',
-    }
+    } as TestItem
     expect(
       // Don't try to compare datetimes
       { ...store.toDb(item), updatedOn: undefined }
     ).toEqual({
-      id: 'test:id',
+      id: '_TESTITEM_:id',
       sort_key: '_',
-      type: 'test',
+      type: '_TESTITEM_',
       typeId: 'id',
       createdOn: undefined,
       updatedOn: undefined,
@@ -134,44 +181,52 @@ describe('Store', () => {
   it('Store calls dynamo for get', async () => {
     const dynamo = testClient()
     dynamo.get = stub()
-    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
+    const store = new TestStore({
+      dynamo: (dynamo as unknown) as ArcDynamoClient,
+    })
     dynamo.get.resolves({})
     await store.get('id')
     expect(dynamo.get.called).toBeTruthy()
     expect(dynamo.get.firstCall.args[0]).toEqual({
       TableName: 'test-table',
-      Key: { id: 'test:id', sort_key: '_' },
+      Key: { id: '_TESTITEM_:id', sort_key: '_' },
     })
   })
 
   it('Store calls dynamo for put', async () => {
     const dynamo = testClient()
     dynamo.put = stub()
-    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
+    const store = new TestStore({
+      dynamo: (dynamo as unknown) as ArcDynamoClient,
+    })
     dynamo.put.resolves({})
-    await store.put({ id: 'id', name: 'test' })
+    await store.put({ id: 'id', name: 'test' } as TestItem)
     expect(dynamo.put.called).toBeTruthy()
-    expect(dynamo.put.firstCall.args[0].Item.id).toBe('test:id')
-    expect(dynamo.put.firstCall.args[0].Item.data.name).toBe('test')
+    expect(dynamo.put.firstCall?.args?.[0].Item?.id).toBe('_TESTITEM_:id')
+    expect(dynamo.put.firstCall?.args?.[0].Item?.data.name).toBe('test')
   })
 
   it('Store calls dynamo for delete', async () => {
     const dynamo = testClient()
     dynamo.delete = stub()
-    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
+    const store = new TestStore({
+      dynamo: (dynamo as unknown) as ArcDynamoClient,
+    })
     dynamo.delete.resolves({})
     await store.delete('id')
     expect(dynamo.delete.called).toBeTruthy()
     expect(dynamo.delete.firstCall.args[0]).toEqual({
       TableName: 'test-table',
-      Key: { id: 'test:id', sort_key: '_' },
+      Key: { id: '_TESTITEM_:id', sort_key: '_' },
     })
   })
 
   it('query calls dynamo', async () => {
     const dynamo = testClient()
-    dynamo.query = stub().resolves({ Items: [] })
-    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
+    dynamo.query.resolves({ Items: [] })
+    const store = new TestStore({
+      dynamo: (dynamo as unknown) as ArcDynamoClient,
+    })
     await store.query({
       IndexName: 'type-index',
       KeyConditionExpression: '#type = :type',
@@ -191,8 +246,10 @@ describe('Store', () => {
 
   it('scan calls dynamo', async () => {
     const dynamo = testClient()
-    dynamo.scan = stub().resolves({ Items: [] })
-    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
+    dynamo.scan.resolves({ Items: [] })
+    const store = new TestStore({
+      dynamo: (dynamo as unknown) as ArcDynamoClient,
+    })
     const username = 'tester'
     await store.scan({
       FilterExpression: 'contains(#username, :username)',
@@ -211,14 +268,17 @@ describe('Store', () => {
 
   it('batchGet calls dynamo', async () => {
     const dynamo = testClient()
-    dynamo.batchGet = stub().resolves({ Items: [] })
-    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
-    const item = store.toDb({ id: '1' })
-    await store.batchGet([store.asKey(item)])
+    dynamo.batchGet.resolves({ Items: [] })
+    const store = new TestStore({
+      dynamo: (dynamo as unknown) as ArcDynamoClient,
+    })
+
+    const item = { id: '1' } as TestItem
+    await store.batchGet([store.getKey(item)])
     const expected = {
       RequestItems: {
         [dynamo.getTableName()]: {
-          Keys: [store.asKey(item)],
+          Keys: [store.getKey(item)],
         },
       },
     }
@@ -228,9 +288,11 @@ describe('Store', () => {
 
   it('batchWrite calls dynamo', async () => {
     const dynamo = testClient()
-    dynamo.batchWrite = stub().resolves({ Items: [] })
-    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
-    const item = store.toDb({ id: '1' })
+    dynamo.batchWrite.resolves({ Items: [] })
+    const store = new TestStore({
+      dynamo: (dynamo as unknown) as ArcDynamoClient,
+    })
+    const item = store.toDb({ id: '1' } as TestItem)
     await store.batchWrite([{ PutRequest: { Item: item } }])
     const expected = {
       RequestItems: {
@@ -243,8 +305,10 @@ describe('Store', () => {
 
   it('queryAll calls dynamo', async () => {
     const dynamo = testClient()
-    dynamo.queryAll = stub().resolves({ Items: [] })
-    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
+    dynamo.queryAll.resolves({ Items: [], $metadata: {} })
+    const store = new TestStore({
+      dynamo: (dynamo as unknown) as ArcDynamoClient,
+    })
     await store.queryAll({
       IndexName: 'type-index',
       KeyConditionExpression: '#type = :type',
@@ -264,8 +328,10 @@ describe('Store', () => {
 
   it('scanAll calls dynamo', async () => {
     const dynamo = testClient()
-    dynamo.scanAll = stub().resolves({ Items: [] })
-    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
+    dynamo.scanAll.resolves({ Items: [], $metadata: {} })
+    const store = new TestStore({
+      dynamo: (dynamo as unknown) as ArcDynamoClient,
+    })
     const username = 'tester'
     await store.scanAll({
       FilterExpression: 'contains(#username, :username)',
@@ -284,14 +350,16 @@ describe('Store', () => {
 
   it('batchGetAll calls dynamo', async () => {
     const dynamo = testClient()
-    dynamo.batchGetAll = stub().resolves({ Responses: { [dynamo.getTableName()]: [] } })
-    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
-    const item = store.toDb({ id: '1' })
-    await store.batchGetAll([store.asKey(item)])
+    dynamo.batchGetAll.resolves({ Responses: { [dynamo.getTableName()]: [] }, $metadata: {} })
+    const store = new TestStore({
+      dynamo: (dynamo as unknown) as ArcDynamoClient,
+    })
+    const item = { id: '1' } as TestItem
+    await store.batchGetAll([store.getKey(item)])
     const expected = {
       RequestItems: {
         [dynamo.getTableName()]: {
-          Keys: [store.asKey(item)],
+          Keys: [store.getKey(item)],
         },
       },
     }
@@ -301,8 +369,10 @@ describe('Store', () => {
 
   it('batchGetAll returns early when given empty array', async () => {
     const dynamo = testClient()
-    dynamo.batchGetAll = stub().rejects(new Error('should have avoided call'))
-    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
+    dynamo.batchGetAll.rejects(new Error('should have avoided call'))
+    const store = new TestStore({
+      dynamo: (dynamo as unknown) as ArcDynamoClient,
+    })
     const result = await store.batchGetAll([])
     expect(result).toEqual([])
     expect(dynamo.batchGetAll.called).toBeFalsy()
@@ -310,9 +380,11 @@ describe('Store', () => {
 
   it('batchWriteAll calls dynamo', async () => {
     const dynamo = testClient()
-    dynamo.batchWriteAll = stub().resolves({ Items: [] })
-    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
-    const item = store.toDb({ id: '1' })
+    dynamo.batchWriteAll.resolves()
+    const store = new TestStore({
+      dynamo: (dynamo as unknown) as ArcDynamoClient,
+    })
+    const item = store.toDb({ id: '1' } as TestItem)
     await store.batchWriteAll([{ PutRequest: { Item: item } }])
     const expected = {
       RequestItems: {
@@ -325,24 +397,28 @@ describe('Store', () => {
 
   it('batchWriteAll returns early when given empty array', async () => {
     const dynamo = testClient()
-    dynamo.batchWriteAll = stub().rejects(new Error('should have avoided call'))
-    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
+    dynamo.batchWriteAll.rejects(new Error('should have avoided call'))
+    const store = new TestStore({
+      dynamo: (dynamo as unknown) as ArcDynamoClient,
+    })
     const result = await store.batchWriteAll([])
-    expect(result).toEqual(undefined)
+    expect(result).toEqual({ $metadata: {} })
     expect(dynamo.batchWriteAll.called).toBeFalsy()
   })
 
   it('getAll calls dynamo', async () => {
     const dynamo = testClient()
-    dynamo.queryAll = stub().resolves({ Items: [] })
-    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
+    dynamo.queryAll.resolves({ Items: [], $metadata: {} })
+    const store = new TestStore({
+      dynamo: (dynamo as unknown) as ArcDynamoClient,
+    })
     await store.getAll()
     const expected = {
       TableName: 'test-table',
       IndexName: 'type-index',
       KeyConditionExpression: '#type = :type',
       ExpressionAttributeNames: { '#type': 'type' },
-      ExpressionAttributeValues: { ':type': 'test' },
+      ExpressionAttributeValues: { ':type': '_TESTITEM_' },
     }
     expect(dynamo.queryAll.called).toBeTruthy()
     expect(dynamo.queryAll.firstCall.args[0]).toEqual(expected)
@@ -350,11 +426,22 @@ describe('Store', () => {
 
   it('forEachPage calls dynamo', async () => {
     const dynamo = testClient()
-    dynamo.query = stub().resolves({ Items: [] })
+    dynamo.query.resolves({ Items: [] })
 
-    const store = new Store({ dynamo, type: 'test', idKey: 'id' })
+    const store = new TestStore({
+      dynamo: (dynamo as unknown) as ArcDynamoClient,
+    })
 
-    await store.forEachPage(stub())
+    const params = {
+      IndexName: 'type-index',
+      KeyConditionExpression: '#type = :type',
+      ExpressionAttributeNames: { '#type': 'type' },
+      ExpressionAttributeValues: { ':type': store.typeKey() },
+      Limit: 100,
+      ExclusiveStartKey: undefined,
+    }
+
+    await store.queryByPage(params, stub())
 
     expect(dynamo.query.called).toBeTruthy()
 
@@ -363,7 +450,7 @@ describe('Store', () => {
       IndexName: 'type-index',
       KeyConditionExpression: '#type = :type',
       ExpressionAttributeNames: { '#type': 'type' },
-      ExpressionAttributeValues: { ':type': 'test' },
+      ExpressionAttributeValues: { ':type': store.typeKey() },
       Limit: 100,
       ExclusiveStartKey: undefined,
     }

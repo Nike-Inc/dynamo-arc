@@ -34,7 +34,12 @@ export { _idKey }
 export { _sortKey }
 export { _delimiter }
 
-export interface StoreConfig<T> {
+export interface StoreConfig {
+  logger?: unknown
+  dynamo: ArcDynamoClient
+}
+
+export interface BaseStoreConfig<T> {
   logger?: unknown
   dynamo: ArcDynamoClient
   /** The type of the item, will be prefixed into the id */
@@ -82,7 +87,7 @@ export abstract class Store<T> {
   public [_sortKey]?: (keyof T & string) | undefined
   public [_delimiter]: string
 
-  constructor({ logger, dynamo, type, sortKey, idKey, delimiter = ':' }: StoreConfig<T>) {
+  constructor({ logger, dynamo, type, sortKey, idKey, delimiter = ':' }: BaseStoreConfig<T>) {
     if (!idKey) {
       throw new Error('"idKey" is required')
     }
@@ -122,7 +127,7 @@ export abstract class Store<T> {
   }
 
   /** Returns the Key object used by dynamo by extracting it from a the JS item object. Useful for building batch lists */
-  getKey(item: T): TableKey {
+  getKey(item: Partial<T>): TableKey {
     const idKey = item[this[_idKey]]
     if (typeof idKey !== 'string') throw new Error('Item has invalid idKey')
 
