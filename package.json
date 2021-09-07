@@ -6,7 +6,6 @@
     "style": "prettier --write \"{src,test}/**/*.ts\"",
     "build": "run-s build:clean build:tsc",
     "build:tsc": "tsc",
-    "build:rollup": "rollup -c",
     "build:clean": "rimraf lib",
     "lint": "eslint 'src/**/*.{js,ts,tsx}' --quiet --fix",
     "check": "npm run style && npm run lint",
@@ -36,8 +35,6 @@
   },
   "devDependencies": {
     "@jest/globals": "^26.6.2",
-    "@rollup/plugin-commonjs": "^17.1.0",
-    "@rollup/plugin-json": "^4.1.0",
     "@types/jest": "^26.0.20",
     "@types/sinon": "^10.0.2",
     "@typescript-eslint/eslint-plugin": "^4.30.0",

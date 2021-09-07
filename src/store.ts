@@ -138,6 +138,10 @@ export abstract class Store<T> {
     )
   }
 
+  get typeIndex(): string {
+    return this[_dynamo][_typeIndex]
+  }
+
   /** Convert the DynamoDB record back into the originally stored JS object */
   fromDb(item?: DbItem<T>): T | null {
     if (!item || !item.data) return null
@@ -281,6 +285,27 @@ export abstract class Store<T> {
 
       lastKey = dbResult.LastEvaluatedKey
     } while (lastKey)
+  }
+
+  /**
+   * Execute an automatically paged query against the typeIndex for the type configured on this store
+   * @deprecated `queryByPage` provides a more generic method for paging
+   */
+  async forEachPage(
+    /** Async function that receives an array of items from the current page. If it resolves `false` paging will stop  */
+    pageFn: (page: T[]) => Promise<void | boolean>,
+    pageSize = 100
+  ): Promise<void> {
+    return this.queryByPage(
+      {
+        IndexName: this.typeIndex,
+        KeyConditionExpression: '#type = :type',
+        ExpressionAttributeNames: { '#type': 'type' },
+        ExpressionAttributeValues: { ':type': this.typeKey() },
+        Limit: pageSize,
+      },
+      pageFn
+    )
   }
 
   /**
