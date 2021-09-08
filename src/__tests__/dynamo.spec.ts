@@ -6,9 +6,9 @@ import { makeClient } from '../dynamo'
 describe('makeClient', () => {
   it('requires valid config', () => {
     // @ts-expect-error missing parameters
-    expect(() => makeClient()).toThrowError(/destructure.+?dynamoConfig/)
-    expect(() => makeClient({ tableName: '' })).toThrowError(/dynamoConfig.+?required/)
-    expect(() => makeClient({ tableName: '', clientConfig: {} })).toThrowError(/region.+?required/)
+    expect(() => makeClient()).toThrowError(/destructure.+?table/)
+    expect(() => makeClient({ tableName: '' })).toThrowError(/table.+?required/)
+    expect(() => makeClient({ tableName: 'a', clientConfig: {} })).toThrowError(/provide.+?region/)
     // @ts-expect-error table name missing
     expect(() => makeClient({ clientConfig: { region: 'us-west-2' } })).toThrowError(
       /tableName.+?required/

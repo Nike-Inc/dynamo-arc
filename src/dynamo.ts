@@ -100,7 +100,7 @@ export function makeClient(
   client?: DynamoDBClient
 ): ArcDynamoClient {
   if (!tableName) throw new Error('"config.tableName" is required')
-  if (!client && !clientConfig) {
+  if (!client && !clientConfig?.region) {
     throw new Error(
       'Must provide either a client parameter or "config.clientConfig" with at least a "region"'
     )
