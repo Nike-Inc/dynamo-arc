@@ -5,16 +5,16 @@ A dynamo data client designed for use with DyanmoDB Single Table applications.
 ## Quick Start
 
 ```javascript
-const { makeClient, BaseStore, Cache } = require('dynamo-arc')
+const { makeClient, Store, Cache } = require('dynamo-arc')
 
 // Setup the base client
 const dynamo = makeClient({
-  dynamoConfig: { region: 'us-west-2' },
-  tableConfig: { tableName: 'my-datastore' }
+  tableName: 'my-datastore',
+  clientConfig: { region: 'us-west-2' }
 })
 
 // Define a type-store
-class RecordStore extends BaseStore {
+class RecordStore extends Store {
   constructor({ dynamo }) {
     super({ type: '_RECORDS_', idKey: 'recordId', dynamo })
   }
@@ -47,7 +47,7 @@ This library provides a simple, async-friendly API for interacting with such a t
 
 **The dynamo client**: using this library requires constructing a special DynamoDB client using the exported **makeClient** function, which is provided to the various **stores** that are defined for each record/schema type. The examples throughout this documentation refer to this object as the *dynamo client*, while the code uses the variable `dynamo`.
 
-**stores**: each record type will have a dedicated store used to handle the composite key logic necessary for packing and unpacking. These are defined by extending the exported `BaseStore` class and provided a `type`, along with optional field-mapping for `idKey` and `sortKey` properties to extract from the record.
+**stores**: each record type will have a dedicated store used to handle the composite key logic necessary for packing and unpacking. These are defined by extending the exported `Store` class and provided a `type`, along with optional field-mapping for `idKey` and `sortKey` properties to extract from the record.
 
 **cache**: the exported `Cache` class is designed to be used once-per-app to construct a generic **ttl cache**. Its basic use is shown above in the **Quick Start** section, with a unique *key*, a *cache-miss function* that fetches the item if it is missing or expired in the cache, and optional *ttl config*. While it might be surprising to overload your primary datastore as a cache, when properly re-using connections DynamoDB can achieve single-digit millisecond response (even in Node) making it a fast, easy to use caching layer.
 
@@ -59,28 +59,47 @@ The configuration for all exported functions/classes can be found below.
 
 ```typescript
 function makeClient({
-  dynamoConfig: DynamoButterConfig,
-  butterConfig: ButterConfig,
-  tableConfig: {
-    tableName: string,
-    idField = 'id', // partition key of the table
-    sortField = 'sort_key', // sort key of the table
-    typeIndex = 'type-index', // index used for the TYPE value
-    ttlField = 'ttl', // ttl field of the table (necessary for the Cache)
-    hasTtlField = true,
-    hasSortField = true
-  }
-})
+  tableName,
+  idField = 'id', // partition key of the table
+  sortField = 'sort_key', // sort key of the table
+  typeIndex = 'type-index', // index used for the TYPE value
+  ttlField = 'ttl', // ttl field of the table (necessary for the Cache)
+  hasTtlField = true,
+  hasSortField = true,
+  clientConfig,
+  translateConfig,
+  dynamoConfig
+}: {
+  tableName: string
+  idField?: string
+  sortField?: string
+  typeIndex?: string
+  ttlField?: string
+  hasTtlField?: boolean
+  hasSortField?: boolean
+  clientConfig?: DynamoDBClientConfig
+  translateConfig?: TranslateConfig
+}, client?: DynamoDBClient // must provide either client param or clientConfig)
+): ArcDynamoClient {}
 ```
 
-The configuration for the *dynamo client's* `dynamoConfig` is passed to [Dynamo Butter](https://github.com/Nike-Inc/dynamo-butter) using the [Configuration-Passthrough Mode](https://github.com/Nike-Inc/dynamo-butter#configuration-passthrough-mode). Use the same values you would use for the *DynamoDB DocumentClient*. The optional `butterConfig` prop can be used to control the second config parameter to Dynamo Butter; this is most useful for disabling keep alive.
+`makeClient` returns a modified dynamo client, typed as `ArcDynamoClient`, that tracks additional data about the table such as its name, various fields, and features. It can either be passed an existing `DynamoDBClient` as via its second parameter, or it can create one using the `clientConfig` option in the first parameter. These options are mutually exclusive, and one of them is required.
 
-The only required property for the `tableConfig` is the `tableName`, which is the full name of the Dynamo table. The other fields are optional with default values.
+The only required property for the first parameter is the `tableName`, which is the full name of the Dynamo table. The other fields are optional with default values.
 
-## BaseStore
+The `translateConfig` configures the DynamoDBDocument client's marshalling options, though Arc uses different default values. The library exports `ArcTranslateDefaults` and `AwsTranslateDefaults`, though a custom configuration can be supplied.
+
+## Store
 
 ```typescript
-declare class BaseStore {
+declare class Store <T>{
+  public readonly [_type]: string
+  public readonly [_dynamo]: ArcDynamoClient
+  public readonly [_logger]: Logger
+  public readonly [_idKey]: keyof T & string
+  public readonly [_sortKey]?: (keyof T & string) | undefined
+  public readonly [_delimiter]: string
+
   constructor(
     dynamo: ArcClient,
     logger: Logger, // see Logging section below
@@ -92,21 +111,21 @@ declare class BaseStore {
 }
 ```
 
-The only required properties for the `BaseStore` are the `dynamo` client, which must be the result of the `makeClient` function, and the `type`, which is used to create the composite key for the record.
+The only required properties for the `Store` are the `dynamo` client, which must be the result of the `makeClient` function, the `type`, which is used to create the composite key for the record, and the `idKey` which is used to extract the primary key from the type.
 
 The simplest child class
 
 ```javascript
-class RecordStore extends BaseStore {
+class RecordStore extends Store {
   constructor({ dynamo }) {
-    super({ type: '_RECORDS_', dynamo })
+    super({ type: '_RECORDS_', idKey: 'id', dynamo })
   }
 ```
 
 A fully configured child class
 
 ```javascript
-class RecordStore extends BaseStore {
+class RecordStore extends Store {
   constructor({ dynamo }) {
     super({
       dynamo,
@@ -122,7 +141,7 @@ class RecordStore extends BaseStore {
 ## API
 
 ```typescript
-interface StoreKey {
+interface TableKey {
     // The properties on a Store's Key are determined
     // by its configuration.
     // It will have an idKey, and optionally a sortKey
@@ -139,7 +158,7 @@ interface DynamoParams {}
 // Stand in for the normal DocumentClient result for the given function
 interface DynamoResult {}
 
-interface BaseStore<T> {
+interface Store<T> {
   getTableName(): string
   
   /** Join id segments together with the configured delimiter */
@@ -158,37 +177,43 @@ interface BaseStore<T> {
   toDb(item: T): DynamoRecord
 
   /** Get a keyed item from Dynamo */
-  get(id:string, sortKey?:string): Promise<T>
+  async get(id:string, sortKey?:string): Promise<T>
 
   /** Delete the item from Dynamo matching the provided key */
-  delete(id:string, sortKey:string): Promise<void>
+  async delete(id:string, sortKey:string): Promise<void>
+
+  /** Delete all items */
+  async deleteAll(items: T[]): Promise<void>
 
   /** Create or Update the item in Dynamo */
-  put(item: T): Promise<T>
+  async put(item: T): Promise<T>
+
+  /** Put all items */
+  async putAll(items: T[]): Promise<void>
 
   /** Execute a query against the configured Dynamo table */
-  query(params: DynamoParams): Promise<DynamoResult>
+  async query(params: DynamoParams): Promise<DynamoResult>
   
   /** Execute a scan against the configured Dynamo table */
-  scan(params: DynamoParams): Promise<DynamoResult>
+  async scan(params: DynamoParams): Promise<DynamoResult>
 
   /** Execute a batchGet against the configured Dynamo table */
-  batchGet(keys: StoreKey[]): Promise<DynamoResult>
+  async batchGet(keys: StoreKey[]): Promise<DynamoResult>
 
   /** Execute a batchWrite against the configured Dynamo table */
-  batchWrite(changes: (StoreKey | T)): Promise<DynamoResult>
+  async batchWrite(changes: (StoreKey | T)): Promise<DynamoResult>
 
   /** Execute a query against the configured Dynamo table with automatic paging, mapped through fromDb() */
-  queryAll(params: DynamoParams): Promise<T[]>
+  async queryAll(params: DynamoParams): Promise<T[]>
   
   /** Execute a scan against the configured Dynamo table with automatic paging, mapped through fromDb() */
-  scanAll(params: DynamoParams): Promise<T[]>
+  async scanAll(params: DynamoParams): Promise<T[]>
 
   /** Execute a batchGet against the configured Dynamo table with automatic paging, mapped through fromDb() */
-  batchGetAll(keys: StoreKey[]): Promise<T[]>
+  async batchGetAll(keys: StoreKey[]): Promise<T[]>
 
   /** Execute a batchWrite against the configured Dynamo table with automatic paging */
-  batchWriteAll(changes: (StoreKey | T)): Promise<DynamoResult>
+  async batchWriteAll(changes: (StoreKey | T)): Promise<DynamoResult>
 
   /** Execute an automatically paged query by processing one page at a time */
   async queryByPage(
@@ -279,10 +304,10 @@ fromDb(item) {
 }
 ```
 
-Both of these functions are defined on the `BaseStore`, so they can be overriden as necessary. The most common use case for this is overriding `toDb` in order to add GSI indexing properties
+Both of these functions are defined on the `Store`, so they can be overriden as necessary. The most common use case for this is overriding `toDb` in order to add GSI indexing properties
 
 ```javascript
-// Class Method on an "extends BaseStore" class
+// Class Method on an "extends Store" class
 toDb(item) {
   return {
     ...super.toDb(item),
@@ -300,7 +325,7 @@ toDb(item) {
 Getting data out of a GSI is easy as long as the GSI key uses the `this.typeKey()` as seen above, which ensure the store's configured *type* is combined with the intended ID. Doing the same on the query filters the query so that only records of the correct type are read from the GSI, despite the Single Table's GSI containing records of many types
 
 ```javascript
-// Class Method on an "extends BaseStore" class
+// Class Method on an "extends Store" class
 async getByOwnerId(ownerId) {
   return this.queryAll({
     IndexName: 'gsi1-index',

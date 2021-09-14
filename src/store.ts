@@ -80,12 +80,12 @@ interface BatchChange {
 }
 
 export abstract class Store<T> {
-  public [_type]: string
-  public [_dynamo]: ArcDynamoClient
-  public [_logger]: Logger
-  public [_idKey]: keyof T & string
-  public [_sortKey]?: (keyof T & string) | undefined
-  public [_delimiter]: string
+  public readonly [_type]: string
+  public readonly [_dynamo]: ArcDynamoClient
+  public readonly [_logger]: Logger
+  public readonly [_idKey]: keyof T & string
+  public readonly [_sortKey]?: (keyof T & string) | undefined
+  public readonly [_delimiter]: string
 
   constructor({ logger, dynamo, type, sortKey, idKey, delimiter = ':' }: BaseStoreConfig<T>) {
     if (!idKey) {

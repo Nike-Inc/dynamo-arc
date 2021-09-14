@@ -1,6 +1,6 @@
 import { TranslateConfig } from '@aws-sdk/lib-dynamodb'
 
-export const ArcDefaults: TranslateConfig = {
+export const ArcTranslateDefaults: TranslateConfig = {
   marshallOptions: {
     convertEmptyValues: true,
     removeUndefinedValues: true,
@@ -11,7 +11,7 @@ export const ArcDefaults: TranslateConfig = {
   },
 }
 
-export const AwsDefaults: TranslateConfig = {
+export const AwsTranslateDefaults: TranslateConfig = {
   marshallOptions: {
     // Whether to automatically convert empty strings, blobs, and sets to `null`.
     convertEmptyValues: false, // false, by default.

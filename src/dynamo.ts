@@ -13,7 +13,7 @@ import {
 } from '@aws-sdk/lib-dynamodb'
 import { HttpHandlerOptions, MetadataBearer } from '@aws-sdk/types'
 
-import { ArcDefaults } from './marshalling'
+import { ArcTranslateDefaults } from './marshalling'
 
 export type OptionalTableName<T> = Omit<T, 'TableName'> & { TableName?: string | undefined }
 
@@ -95,7 +95,7 @@ export function makeClient(
     hasTtlField = true,
     hasSortField = true,
     clientConfig,
-    translateConfig = ArcDefaults,
+    translateConfig = ArcTranslateDefaults,
   }: ArcConfig,
   client?: DynamoDBClient
 ): ArcDynamoClient {
