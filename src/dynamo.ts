@@ -175,8 +175,8 @@ async function queryAll(
     }
     workRemaining =
       response.LastEvaluatedKey &&
-      (queryLimit === undefined || result?.ScannedCount || 0 < queryLimit) &&
-      (itemLimit === undefined || result?.Count || 0 < itemLimit)
+      (queryLimit === undefined || (result?.ScannedCount ?? 0) <= queryLimit) &&
+      (itemLimit === undefined || (result?.Count ?? 0) <= itemLimit)
   } while (workRemaining)
 
   return result
@@ -217,8 +217,8 @@ async function scanAll(
     }
     workRemaining =
       response.LastEvaluatedKey &&
-      (scanLimit === undefined || result?.ScannedCount || 0 < scanLimit) &&
-      (itemLimit === undefined || result?.Count || 0 < itemLimit)
+      (scanLimit === undefined || (result?.ScannedCount ?? 0) < scanLimit) &&
+      (itemLimit === undefined || (result?.Count ?? 0) < itemLimit)
   } while (workRemaining)
 
   return result

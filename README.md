@@ -337,11 +337,73 @@ async getByOwnerId(ownerId) {
 }
 ```
 
+## Modeling Relationships
+
+In Graph Theory an [edge](https://en.wikipedia.org/wiki/Glossary_of_graph_theory#edge) is a relationship between two nodes. Since DynamoDB is a NoSQL store there are no native relationships, but they can be simulated by creating records that use the _primary_ and _sort_ keys on the table. These records are called _edges_. Arc has tools for managing _edges_ modelling either parent-child relationships (one-to-many) or associative relationships (many-to-many).
+
+There are three classes for working with _edges_.
+
+* `ChildStore` - Used for managing children in a parent-child relationship
+* `EdgeStore` - Used for managing edges in an associative relationship
+* `BaseEdgeStore` - Used for managing edges in an associative relationship. This Class is intended to provide additional flexibility for cases when the safety checks or automatic edge-selection on the `EdgeStore` or `ChildStore` are too restrictive. When possible prefer the `EdgeStore` or `ChildStore`.
+
+### ChildStore
+
+The `ChildStore` simplifies working with the children in a parent-child relationship
+
+**Parent-Child Example**
+
+```typescript
+import { ChildStore } from 'dyanamo-arc'
+
+interface Parent {
+  id: string
+  children: Child[]
+}
+
+interface Child {
+  id: string
+}
+
+const childrenStore = new ChildStore<Child, Parent>({
+  dynamo, // requires `sortKey`
+  idKey: 'id',
+  type: '_PARENTCHILD_',
+  childKey: 'children',
+  parentIdKey: 'id',
+})
+
+const child1 = { id: '1' }
+const child2 = { id: '2' }
+
+const parent = {
+  id: '1234',
+  children: [child1, child2]
+}
+
+// Save children to DB
+await childrenStore.syncEdgesByParent(parent)
+// OR
+await childrenStore.syncEdgesByParent(parent.id, parent.children)
+
+// Modify children
+parent.children.pop()
+
+// Remove last child from DB
+await childrenStore.syncEdgesByParent(parent)
+
+// Fetch children from DB
+const dbChildren = await childrenStore.getByParentId(parent.id)
+```
+
 ## EdgeStore
 
-In Graph Theory an [edge](https://en.wikipedia.org/wiki/Glossary_of_graph_theory#edge) is a relationship between two nodes. Since DynamoDB is a NoSQL store there are no native relationships, but they can be simulated by creating records that use the _primary_ and _sort_ keys on the table. The `EdgeStore` class can model parent-child relationships (one-to-many) and associative relationships (many-to-many), depending on it's configuration.
+The `EdgeStore` simplifies working with many-to-many relationships between two types.
 
-**Parent-Child Configuration**
+
+
+
+**Associate Relationship Configuration**
 
 ```typescript
 import { EdgeStore } from 'dyanamo-arc'
@@ -363,7 +425,6 @@ const parentChild = new EdgeStore<Child, Parent, never>({
   primaryEdgeKey: 'children',
   primaryIdKey: 'id',
 })
-
 ```
 
 
@@ -393,3 +454,7 @@ const edge = {
 ```
 
 Here, again, a relationship to one node is stored on the primary key. A secondary relationship is modeled on a GSI, using the same method. This allows a two-way, or "many-to-many", relationship to be modeled.
+
+## BaseEdgeStore
+
+The `BaseEdgeStore` extends the `Store` with a pair of methods that assist with creating a `batchWriteAll` call to add and remove records. 

@@ -35,12 +35,7 @@ export { _idKey }
 export { _sortKey }
 export { _delimiter }
 
-export interface StoreConfig {
-  logger?: unknown
-  dynamo: ArcDynamoClient
-}
-
-export interface BaseStoreConfig<T> {
+export interface StoreConfig<T> {
   logger?: unknown
   dynamo: ArcDynamoClient
   /** The type of the item, will be prefixed into the id */
@@ -88,7 +83,7 @@ export abstract class Store<T> {
   public readonly [_sortKey]?: (keyof T & string) | undefined
   public readonly [_delimiter]: string
 
-  constructor({ logger, dynamo, type, sortKey, idKey, delimiter = ':' }: BaseStoreConfig<T>) {
+  constructor({ logger, dynamo, type, sortKey, idKey, delimiter = ':' }: StoreConfig<T>) {
     if (!idKey) {
       throw new Error('"idKey" is required')
     }
