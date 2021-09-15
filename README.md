@@ -337,3 +337,59 @@ async getByOwnerId(ownerId) {
 }
 ```
 
+## EdgeStore
+
+In Graph Theory an [edge](https://en.wikipedia.org/wiki/Glossary_of_graph_theory#edge) is a relationship between two nodes. Since DynamoDB is a NoSQL store there are no native relationships, but they can be simulated by creating records that use the _primary_ and _sort_ keys on the table. The `EdgeStore` class can model parent-child relationships (one-to-many) and associative relationships (many-to-many), depending on it's configuration.
+
+**Parent-Child Configuration**
+
+```typescript
+import { EdgeStore } from 'dyanamo-arc'
+
+interface Parent {
+  id: string
+  children: Child[]
+}
+
+interface Child {
+  id: string
+  parentId: string
+}
+
+const parentChild = new EdgeStore<Child, Parent, never>({
+  dynamo,
+  idKey: 'id',
+  type: '_PARENTCHILD_',
+  primaryEdgeKey: 'children',
+  primaryIdKey: 'id',
+})
+
+```
+
+
+### How it works
+
+Here is an example of a parent child relationship
+
+```javascript
+const node = { id: '_USER_:4332' }
+const edge = { id: '_USER_PREF_:4332', sort_key: 'volume', /* ... */}
+```
+
+Notice how in the edge-record the id is the same as the User ID. This allows a query to select all of the _user preference relationship_ by knowing only the User ID and the type (`_USER_PREF_`).
+
+Here is an example of a two-way relationship
+
+```javascript
+const user = { id: '_USER_:4332' }
+const team = { id: '_TEAM_:8867' }
+const edge = {
+  id: '_USER_TEAM_MEMBER_:4332',
+  sort_key: '8867',
+  gsi1_key: '_USER_TEAM_MEMBER_:8867',
+  gsi1_sort: '4332' 
+  /* ... */
+}
+```
+
+Here, again, a relationship to one node is stored on the primary key. A secondary relationship is modeled on a GSI, using the same method. This allows a two-way, or "many-to-many", relationship to be modeled.

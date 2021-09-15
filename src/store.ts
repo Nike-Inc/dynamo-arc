@@ -15,6 +15,7 @@ import {
   _typeIndex,
   _idField,
   _sortField,
+  _indexes,
 } from './dynamo'
 import { Logger, wrapper } from './logger'
 
@@ -44,7 +45,7 @@ export interface BaseStoreConfig<T> {
   dynamo: ArcDynamoClient
   /** The type of the item, will be prefixed into the id */
   type: string
-  idKey?: keyof T & string
+  idKey: keyof T & string
   sortKey?: (keyof T & string) | undefined
   /** Delimits the type and the id, as well as any supplemental id segments */
   delimiter?: string
@@ -60,7 +61,7 @@ export interface DbItem<T> {
   [key: string]: unknown
 }
 
-interface BatchChange {
+export interface BatchChange {
   PutRequest?: {
     Item:
       | {
@@ -455,11 +456,7 @@ export abstract class Store<T> {
   }
 }
 
-export function asKey(
-  dynamo: ArcDynamoClient,
-  id: string,
-  sortKey?: string
-): { [key: string]: string } {
+export function asKey(dynamo: ArcDynamoClient, id: string, sortKey?: string): TableKey {
   const idField = dynamo[_idField]
   const sortField = dynamo[_sortField]
 
@@ -467,4 +464,30 @@ export function asKey(
   if (sortField) key[sortField] = sortKey ?? '_'
 
   return key
+}
+
+export function asIndexKey(
+  dynamo: ArcDynamoClient,
+  indexName: string,
+  id: string,
+  sortKey?: string
+): TableKey {
+  if (!dynamo[_indexes][indexName]) {
+    throw new Error(`dynamo client does not have an index named ${indexName}`)
+  }
+  const { idField, sortField } = dynamo[_indexes][indexName]
+
+  const key = { [idField]: id }
+  if (sortField) key[sortField] = sortKey ?? '_'
+
+  return key
+}
+
+export function areKeysEqual(dynamo: ArcDynamoClient, left: unknown, right: unknown): boolean {
+  const a = left as TableKey
+  const b = right as TableKey
+  const idField = dynamo[_idField]
+  const sortField = dynamo[_sortField]
+
+  return a[idField] === b[idField] && (!sortField || a[sortField] === b[sortField])
 }

@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - `putAll`
 - `deleteAll`
 - `queryByPage`
+- `EdgeStore` class
 ## Removed
 - **BREAKING CHANGE** removed default value for `idKey` on `Store` constructor
 ## Deprecated

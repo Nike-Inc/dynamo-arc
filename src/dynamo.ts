@@ -35,12 +35,19 @@ export interface BatchWriteItemAllInput extends BatchWriteCommandInput {
   PageSize?: number
 }
 
+export interface ArcIndex {
+  name: string
+  idField: string
+  sortField?: string
+}
+
 // Client Fields
 const _tableName = Symbol('_tableName')
 const _typeIndex = Symbol('_typeIndex')
 const _idField = Symbol('_idField')
 const _sortField = Symbol('_sortField')
 const _ttlField = Symbol('_ttlField')
+const _indexes = Symbol('_indexes')
 
 // Client Symbols
 export { _tableName }
@@ -48,6 +55,7 @@ export { _typeIndex }
 export { _idField }
 export { _sortField }
 export { _ttlField }
+export { _indexes }
 
 export interface ArcDynamoClient extends DynamoDBDocument {
   queryAll(params: QueryAllInput, options?: HttpHandlerOptions): Promise<QueryCommandOutput>
@@ -66,6 +74,7 @@ export interface ArcDynamoClient extends DynamoDBDocument {
   [_idField]: string
   [_sortField]: string | undefined
   [_ttlField]: string | undefined
+  [_indexes]: Record<string, ArcIndex>
   // queryByPage<T>(
   //   args: QueryAllInput,
   //   pageFn: (page: T[]) => Promise<void | boolean>,
@@ -81,6 +90,7 @@ export interface ArcConfig {
   ttlField?: string
   hasTtlField?: boolean
   hasSortField?: boolean
+  indexes?: ArcIndex[]
   clientConfig?: DynamoDBClientConfig
   translateConfig?: TranslateConfig
 }
@@ -94,6 +104,7 @@ export function makeClient(
     ttlField = 'ttl',
     hasTtlField = true,
     hasSortField = true,
+    indexes,
     clientConfig,
     translateConfig = ArcTranslateDefaults,
   }: ArcConfig,
@@ -123,6 +134,8 @@ export function makeClient(
   dynamo[_sortField] = hasSortField ? sortField : undefined
   dynamo[_ttlField] = hasTtlField ? ttlField : undefined
   dynamo.getTableName = () => dynamo[_tableName]
+
+  dynamo[_indexes] = indexes ? Object.fromEntries(indexes.map((index) => [index.name, index])) : {}
 
   return dynamo as ArcDynamoClient
 }
