@@ -401,21 +401,19 @@ const dbChildren = await childrenStore.getByParentId(parent.id)
 The `EdgeStore` simplifies working with many-to-many relationships between two types.
 
 
-
-
 **Associate Relationship Configuration**
 
 ```typescript
 import { EdgeStore } from 'dyanamo-arc'
 
-interface Parent {
+interface User {
   id: string
-  children: Child[]
+  teams: Team[]
 }
 
-interface Child {
+interface Team {
   id: string
-  parentId: string
+  members: User[]
 }
 
 const parentChild = new EdgeStore<Child, Parent, never>({

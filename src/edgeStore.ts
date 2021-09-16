@@ -10,12 +10,8 @@ import {
   _dynamo,
   _logger,
 } from './store'
-import { _idField, _sortField, _indexes, ArcDynamoClient } from './dynamo'
+import { _idField, _sortField, _indexes, ArcIndexWithSort } from './dynamo'
 
-const _primaryEdgeKey = Symbol('_primaryEdgeKey')
-const _primaryIdKey = Symbol('_primaryIdKey')
-const _secondaryEdgeKey = Symbol('_secondaryEdgeKey')
-const _secondaryIdKey = Symbol('_secondaryIdKey')
 const _secondaryIndex = Symbol('_secondaryIndex')
 
 export class BaseEdgeStore<Edge> extends Store<Edge> {
@@ -48,7 +44,7 @@ export class BaseEdgeStore<Edge> extends Store<Edge> {
     try {
       await this.batchWriteAll(changes)
     } catch (e) {
-      this[_logger].error(`Sync Error`, e, changes)
+      this[_logger].error(`Edge Sync Error`, e, changes)
       throw e
     }
 
@@ -60,16 +56,7 @@ export class BaseEdgeStore<Edge> extends Store<Edge> {
   }
 }
 
-export interface EdgeStoreConfig<Edge, PrimaryNode, SecondaryNode> extends StoreConfig<Edge> {
-  /** property on the primary node that contains the id key. */
-  primaryIdKey: keyof PrimaryNode & string
-  /** property on the primary node that contains an array of edges */
-  primaryEdgeKey: keyof PrimaryNode & string
-
-  /** property on the secondary node that contains an array of edges */
-  secondaryEdgeKey: keyof SecondaryNode & string
-  /** property on the secondary node that contains the id key. */
-  secondaryIdKey: keyof SecondaryNode & string
+export interface EdgeStoreConfig<Edge> extends StoreConfig<Edge> {
   /**
    * Index name of the GSI that maps edges to the secondary node (used by `toDb` to populate the GSI).
    *
@@ -78,27 +65,14 @@ export interface EdgeStoreConfig<Edge, PrimaryNode, SecondaryNode> extends Store
   secondaryIndex: string
 }
 
-export class EdgeStore<Edge, PrimaryNode, SecondaryNode> extends BaseEdgeStore<Edge> {
-  public readonly [_primaryEdgeKey]: string
-  public readonly [_primaryIdKey]: string
-  public readonly [_secondaryEdgeKey]?: string
-  public readonly [_secondaryIdKey]?: string
-  public readonly [_secondaryIndex]?: string
+export class EdgeStore<Edge> extends BaseEdgeStore<Edge> {
+  public readonly [_secondaryIndex]: ArcIndexWithSort
 
-  constructor(props: EdgeStoreConfig<Edge, PrimaryNode, SecondaryNode>) {
+  constructor(props: EdgeStoreConfig<Edge>) {
     super(props)
     if (!this[_dynamo][_sortField]) {
       throw new Error('EdgeStore requires the dynamo client to have a sortField')
     }
-    if (!props.primaryIdKey) throw new Error('"primaryIdKey" is required')
-    if (!props.primaryEdgeKey) throw new Error('"primaryEdgeKey" is required')
-    if (!props.secondaryIdKey) throw new Error('"secondaryIdKey" is required')
-    if (!props.secondaryEdgeKey) throw new Error('"secondaryEdgeKey" is required')
-
-    this[_primaryIdKey] = props.primaryIdKey
-    this[_primaryEdgeKey] = props.primaryEdgeKey
-    this[_secondaryIdKey] = props.secondaryIdKey
-    this[_secondaryEdgeKey] = props.secondaryEdgeKey
 
     if (props.secondaryIndex && !this[_dynamo][_indexes]?.[props.secondaryIndex]) {
       throw new Error('"secondaryIndex" is missing from indexes in the provided dynamo client')
@@ -106,16 +80,15 @@ export class EdgeStore<Edge, PrimaryNode, SecondaryNode> extends BaseEdgeStore<E
     if (props.secondaryIndex && !this[_dynamo][_indexes]?.[props.secondaryIndex]?.sortField) {
       throw new Error('"secondaryIndex" is must have a sortField defined for use in an EdgeStore')
     }
-    this[_secondaryIndex] = props.secondaryIndex
+    this[_secondaryIndex] = this[_dynamo][_indexes]?.[props.secondaryIndex] as ArcIndexWithSort
   }
 
   /**
    * Add/remove edges so that the database matches the relationships on the primary node
    * @return {*} {Promise<[Edge[], Edge[]]>} Returns an array of [edgesAdded, edgesRemoved]
    */
-  async syncEdgesByPrimary(node: PrimaryNode): Promise<[Edge[], Edge[]]> {
-    const edges = this.selectPrimaryEdges(node)
-    const dbEdges = await this.getPrimaryEdges(((node as unknown) as TableKey)[this[_primaryIdKey]])
+  async syncEdgesByPrimary(primaryNodeId: string, edges: Edge[]): Promise<[Edge[], Edge[]]> {
+    const dbEdges = await this.getEdgesByPrimaryId(primaryNodeId)
 
     return this.syncEdges(dbEdges, edges)
   }
@@ -124,29 +97,13 @@ export class EdgeStore<Edge, PrimaryNode, SecondaryNode> extends BaseEdgeStore<E
    * Add/remove edges so that the database matches the relationships on the secondary node
    * @return {*} {Promise<[Edge[], Edge[]]>} Returns an array of [edgesAdded, edgesRemoved]
    */
-  async syncEdgesBySecondary(node: SecondaryNode): Promise<[Edge[], Edge[]]> {
-    const key = this[_secondaryIdKey]
-    if (!key) throw new Error('Unable to get edges, no "secondaryIdKey" defined')
-
-    const edges = this.selectSecondaryEdges(node)
-    const dbEdges = await this.getSecondaryEdges(((node as unknown) as TableKey)[key])
+  async syncEdgesBySecondary(secondaryNodeId: string, edges: Edge[]): Promise<[Edge[], Edge[]]> {
+    const dbEdges = await this.getEdgesBySecondaryId(secondaryNodeId)
 
     return this.syncEdges(dbEdges, edges)
   }
 
-  /** Extract the edges from the primary node using the `primaryEdgeKey` defined in the constructor. Can be overridden */
-  protected selectPrimaryEdges(node: PrimaryNode): Edge[] {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return ((node as any)?.[_primaryEdgeKey] as Edge[]) ?? []
-  }
-
-  /** Extract the edges from the primary node using the `secondaryEdgeKey` defined in the constructor. Can be overridden */
-  protected selectSecondaryEdges(node: SecondaryNode): Edge[] {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return ((node as any)?.[_secondaryEdgeKey] as Edge[]) ?? []
-  }
-
-  async getPrimaryEdges(primaryId: string): Promise<Edge[]> {
+  async getEdgesByPrimaryId(primaryId: string): Promise<Edge[]> {
     return this.queryAll({
       ScanIndexForward: false,
       KeyConditionExpression: '#id = :id',
@@ -155,14 +112,12 @@ export class EdgeStore<Edge, PrimaryNode, SecondaryNode> extends BaseEdgeStore<E
     })
   }
 
-  async getSecondaryEdges(secondaryId: string): Promise<Edge[]> {
+  async getEdgesBySecondaryId(secondaryId: string): Promise<Edge[]> {
     const index = this[_secondaryIndex]
-
-    if (!index) throw new Error('Unable to get edges, no "secondaryIndex" defined')
 
     return this.queryAll({
       ScanIndexForward: false,
-      IndexName: index,
+      IndexName: index.name,
       KeyConditionExpression: '#id = :id',
       ExpressionAttributeNames: { '#id': this[_dynamo][_idField] },
       ExpressionAttributeValues: { ':id': this.typeKey(secondaryId) },
@@ -170,12 +125,8 @@ export class EdgeStore<Edge, PrimaryNode, SecondaryNode> extends BaseEdgeStore<E
   }
 
   toDb(item: Edge): DbItem<Edge> {
-    const secondaryIndex = this[_secondaryIndex]
-    if (!secondaryIndex) return super.toDb(item)
-    const gsiKey = this[_dynamo][_indexes][secondaryIndex].idField
-    // This assertion is verified in the constructor
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const gsiSort = this[_dynamo][_indexes][secondaryIndex].sortField!
+    const gsiKey = this[_secondaryIndex].idField
+    const gsiSort = this[_secondaryIndex].sortField
 
     return {
       ...super.toDb(item),
@@ -186,39 +137,3 @@ export class EdgeStore<Edge, PrimaryNode, SecondaryNode> extends BaseEdgeStore<E
     }
   }
 }
-
-interface Parent {
-  id: string
-  children: Child[]
-}
-
-interface Child {
-  id: string
-  parentId: string
-}
-
-const parentChild = new BaseEdgeStore<Child, Parent, never>({
-  primaryEdgeKey: 'children',
-  primaryIdKey: 'id',
-  idKey: 'id',
-  type: '_PARENTCHILD_',
-  dynamo: ({} as unknown) as ArcDynamoClient,
-})
-
-interface User {
-  id: string
-  children: Child[]
-}
-
-interface Child {
-  id: string
-  parentId: string
-}
-
-const associative = new BaseEdgeStore<Child, Parent, never>({
-  dynamo: ({} as unknown) as ArcDynamoClient,
-  idKey: 'id',
-  type: '_PARENTCHILD_',
-  primaryEdgeKey: 'children',
-  primaryIdKey: 'id',
-})

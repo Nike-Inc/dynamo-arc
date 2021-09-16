@@ -4,6 +4,7 @@ import {
   ScanCommandInput,
   BatchGetCommandOutput,
   BatchWriteCommandOutput,
+  ScanCommandOutput,
 } from '@aws-sdk/lib-dynamodb'
 import { HttpHandlerOptions } from '@aws-sdk/types'
 
@@ -222,18 +223,14 @@ export abstract class Store<T> {
   async query(
     params: OptionalTableName<QueryCommandInput>,
     options?: HttpHandlerOptions
-  ): Promise<T[]> {
-    const response = await this[_dynamo].query(
+  ): Promise<QueryCommandOutput> {
+    return this[_dynamo].query(
       {
         TableName: this.getTableName(),
         ...params,
       },
       options
     )
-
-    if (!response?.Items?.length) return []
-
-    return response.Items.map(this.fromDb) as T[]
   }
 
   /**
@@ -312,18 +309,14 @@ export abstract class Store<T> {
   async scan(
     params: OptionalTableName<ScanCommandInput>,
     options?: HttpHandlerOptions
-  ): Promise<T[]> {
-    const response = await this[_dynamo].scan(
+  ): Promise<ScanCommandOutput> {
+    return this[_dynamo].scan(
       {
         TableName: this.getTableName(),
         ...params,
       },
       options
     )
-
-    if (!response?.Items?.length) return []
-
-    return response.Items.map(this.fromDb) as T[]
   }
 
   /**
