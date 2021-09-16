@@ -41,6 +41,10 @@ export interface ArcIndex {
   sortField?: string
 }
 
+export interface ArcIndexWithSort extends ArcIndex {
+  sortField: string
+}
+
 // Client Fields
 const _tableName = Symbol('_tableName')
 const _typeIndex = Symbol('_typeIndex')

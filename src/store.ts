@@ -4,6 +4,7 @@ import {
   ScanCommandInput,
   BatchGetCommandOutput,
   BatchWriteCommandOutput,
+  ScanCommandOutput,
 } from '@aws-sdk/lib-dynamodb'
 import { HttpHandlerOptions } from '@aws-sdk/types'
 
@@ -15,6 +16,7 @@ import {
   _typeIndex,
   _idField,
   _sortField,
+  _indexes,
 } from './dynamo'
 import { Logger, wrapper } from './logger'
 
@@ -34,17 +36,12 @@ export { _idKey }
 export { _sortKey }
 export { _delimiter }
 
-export interface StoreConfig {
-  logger?: unknown
-  dynamo: ArcDynamoClient
-}
-
-export interface BaseStoreConfig<T> {
+export interface StoreConfig<T> {
   logger?: unknown
   dynamo: ArcDynamoClient
   /** The type of the item, will be prefixed into the id */
   type: string
-  idKey?: keyof T & string
+  idKey: keyof T & string
   sortKey?: (keyof T & string) | undefined
   /** Delimits the type and the id, as well as any supplemental id segments */
   delimiter?: string
@@ -60,7 +57,7 @@ export interface DbItem<T> {
   [key: string]: unknown
 }
 
-interface BatchChange {
+export interface BatchChange {
   PutRequest?: {
     Item:
       | {
@@ -87,7 +84,7 @@ export abstract class Store<T> {
   public readonly [_sortKey]?: (keyof T & string) | undefined
   public readonly [_delimiter]: string
 
-  constructor({ logger, dynamo, type, sortKey, idKey, delimiter = ':' }: BaseStoreConfig<T>) {
+  constructor({ logger, dynamo, type, sortKey, idKey, delimiter = ':' }: StoreConfig<T>) {
     if (!idKey) {
       throw new Error('"idKey" is required')
     }
@@ -226,18 +223,14 @@ export abstract class Store<T> {
   async query(
     params: OptionalTableName<QueryCommandInput>,
     options?: HttpHandlerOptions
-  ): Promise<T[]> {
-    const response = await this[_dynamo].query(
+  ): Promise<QueryCommandOutput> {
+    return this[_dynamo].query(
       {
         TableName: this.getTableName(),
         ...params,
       },
       options
     )
-
-    if (!response?.Items?.length) return []
-
-    return response.Items.map(this.fromDb) as T[]
   }
 
   /**
@@ -316,18 +309,14 @@ export abstract class Store<T> {
   async scan(
     params: OptionalTableName<ScanCommandInput>,
     options?: HttpHandlerOptions
-  ): Promise<T[]> {
-    const response = await this[_dynamo].scan(
+  ): Promise<ScanCommandOutput> {
+    return this[_dynamo].scan(
       {
         TableName: this.getTableName(),
         ...params,
       },
       options
     )
-
-    if (!response?.Items?.length) return []
-
-    return response.Items.map(this.fromDb) as T[]
   }
 
   /**
@@ -455,11 +444,7 @@ export abstract class Store<T> {
   }
 }
 
-export function asKey(
-  dynamo: ArcDynamoClient,
-  id: string,
-  sortKey?: string
-): { [key: string]: string } {
+export function asKey(dynamo: ArcDynamoClient, id: string, sortKey?: string): TableKey {
   const idField = dynamo[_idField]
   const sortField = dynamo[_sortField]
 
@@ -467,4 +452,30 @@ export function asKey(
   if (sortField) key[sortField] = sortKey ?? '_'
 
   return key
+}
+
+export function asIndexKey(
+  dynamo: ArcDynamoClient,
+  indexName: string,
+  id: string,
+  sortKey?: string
+): TableKey {
+  if (!dynamo[_indexes][indexName]) {
+    throw new Error(`dynamo client does not have an index named ${indexName}`)
+  }
+  const { idField, sortField } = dynamo[_indexes][indexName]
+
+  const key = { [idField]: id }
+  if (sortField) key[sortField] = sortKey ?? '_'
+
+  return key
+}
+
+export function areKeysEqual(dynamo: ArcDynamoClient, left: unknown, right: unknown): boolean {
+  const a = left as TableKey
+  const b = right as TableKey
+  const idField = dynamo[_idField]
+  const sortField = dynamo[_sortField]
+
+  return a[idField] === b[idField] && (!sortField || a[sortField] === b[sortField])
 }
