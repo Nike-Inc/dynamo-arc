@@ -13,6 +13,20 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## Added
 - `BaseStore.update()`
 
+## [2.0.0] - Unreleased
+## Changed
+- **BREAKING CHANGE** Typescript re-write using AWS SDK v3
+- **BREAKING CHANGE** `BaseStore` renamed to `Store`
+## Added
+- `clientSymbols` and `storeSymbols` properties are now also available as top-level exports to support Typescript's `unique symbol` requirements. See [these](https://github.com/microsoft/TypeScript/issues/4283) two [issues](https://github.com/microsoft/TypeScript/issues/35562)
+- `putAll`
+- `deleteAll`
+- `queryByPage`
+## Removed
+- **BREAKING CHANGE** removed default value for `idKey` on `Store` constructor
+## Deprecated
+-  `forEachPage`
+
 ## [1.5.1] - 2021-01-21
 ## Fixed
 - `BaseStore.getKey()` not adding `typeKey` to the ID field
