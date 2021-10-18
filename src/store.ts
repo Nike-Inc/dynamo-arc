@@ -135,6 +135,10 @@ export abstract class Store<T> {
     )
   }
 
+  get type(): string {
+    return this[_type]
+  }
+
   get typeIndex(): string {
     return this[_dynamo][_typeIndex]
   }
