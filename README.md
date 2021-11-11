@@ -336,6 +336,18 @@ async getByOwnerId(ownerId) {
   })
 }
 ```
+## Stream processing queries
+
+the `store.queryByPage` function provides streaming access to the results of a query. Since only one page is brought into memory at a time this can allow queries to be processed that might otherwise cause the process to consume more memory than its host can provide.
+
+```typescript
+ /** Execute an automatically paged query by processing one page at a time */
+  queryByPage(params: DynamoParams, pageFn: T[]) => any)
+```
+
+The `pageFn` is passed an array of `fromDb()` mapped rows and its result is awaited. The paging process can be halted early by returning the `storeSymbols.pageBreak` symbol from the `pageFn`.
+
+**forEachPage** is an older, deprecated method that functions similar to `queryByPage`, but uses a pre-canned query that pages the entire `typeIndex` for the current store. This behavior (and more!) is possible with `queryByPage`.
 
 ## Modeling Relationships
 

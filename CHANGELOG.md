@@ -4,8 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [2.1.0] - 2021-10-18
+## Added
+- `store.type`
 
-## [2.0.0] - Unreleased
+## [2.0.0] - 2021-10-15
 ## Changed
 - **BREAKING CHANGE** Typescript re-write using AWS SDK v3
 - **BREAKING CHANGE** `BaseStore` renamed to `Store`
@@ -19,6 +22,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - **BREAKING CHANGE** removed default value for `idKey` on `Store` constructor
 ## Deprecated
 -  `forEachPage`
+
+## [1.7.0] - 2021-08-11
+## Added
+- `queryByPage` for customized `forEachPage` queries
+- `storeSymbols.pageBreak` Symbol to allow `forEachPage` and `queryByPage` to be halted early
+
+## [1.6.0] - 2021-08-03
+## Added
+- `BaseStore.update()`
 
 ## [1.5.1] - 2021-01-21
 ## Fixed

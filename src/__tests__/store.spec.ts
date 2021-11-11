@@ -12,7 +12,7 @@ interface TestItem {
 }
 
 class TestStore extends Store<TestItem> {
-  constructor({ dynamo }: StoreConfig) {
+  constructor({ dynamo }: Omit<StoreConfig<TestItem>, 'idKey' | 'type'>) {
     super({ dynamo, type: '_TESTITEM_', idKey: 'id', sortKey: 'owner' })
   }
 }
@@ -40,7 +40,7 @@ const testClient = ({ hasSortField = true, sortField = 'sort_key' }: Partial<Arc
 describe('Store', () => {
   it('allows subclassing', () => {
     class TestStore extends Store<TestItem> {
-      constructor({ dynamo }: StoreConfig) {
+      constructor({ dynamo }: StoreConfig<TestItem>) {
         super({ dynamo, type: '_TESTITEM_', idKey: 'id', sortKey: 'owner' })
       }
     }
@@ -48,7 +48,7 @@ describe('Store', () => {
   })
   it('throws if subclass has bad idKey', () => {
     class TestStore extends Store<TestItem> {
-      constructor({ dynamo }: StoreConfig) {
+      constructor({ dynamo }: StoreConfig<TestItem>) {
         // @ts-expect-error Type '"name"' is not assignable to type '"root" | "owner"'
         super({ dynamo, type: '_TESTITEM_', idKey: 'other' })
       }
@@ -57,7 +57,7 @@ describe('Store', () => {
   })
   it('throws if subclass has bad sortKey', () => {
     class TestStore extends Store<TestItem> {
-      constructor({ dynamo }: StoreConfig) {
+      constructor({ dynamo }: StoreConfig<TestItem>) {
         // @ts-expect-error Type '"name"' is not assignable to type '"root" | "owner"'
         super({ dynamo, type: '_TESTITEM_', idKey: 'root', sortKey: 'bad' })
       }
