@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [2.2.0] - Unreleased
+## Added
+- `EdgeStore` for handling relationship records
+- `BaseEdgeStore` for handling relationship records manually
+- `StoreSubConfig` for simplifying `Store` sub-class constructors
+- `EdgeStoreConfig` for simplifying `EdgeStore` sub-class constructors
+
 ## [2.1.0] - 2021-10-18
 ## Added
 - `store.type`
