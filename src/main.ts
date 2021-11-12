@@ -1,9 +1,11 @@
 // First import symbols, which must be exported in two different ways
 import { _type, _dynamo, _logger, _idKey, _sortKey, _delimiter } from './store'
 import { _tableName, _typeIndex, _idField, _sortField, _ttlField } from './dynamo'
+import { _secondaryIndex } from './edgeStore'
 
 export { ArcTranslateDefaults, AwsTranslateDefaults } from './marshalling'
 export { Store, StoreConfig, TableKey, DbItem, asKey } from './store'
+export { BaseEdgeStore, EdgeStore } from './edgeStore'
 export {
   makeClient,
   ArcConfig,
@@ -35,6 +37,7 @@ export { _logger }
 export { _idKey }
 export { _sortKey }
 export { _delimiter }
+export { _secondaryIndex }
 
 // Client Symbols
 export { _tableName }
@@ -58,4 +61,5 @@ export const storeSymbols = {
   _idKey,
   _sortKey,
   _delimiter,
+  _secondaryIndex,
 }

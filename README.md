@@ -336,7 +336,6 @@ async getByOwnerId(ownerId) {
   })
 }
 ```
-
 ## Stream processing queries
 
 the `store.queryByPage` function provides streaming access to the results of a query. Since only one page is brought into memory at a time this can allow queries to be processed that might otherwise cause the process to consume more memory than its host can provide.
@@ -349,3 +348,175 @@ the `store.queryByPage` function provides streaming access to the results of a q
 The `pageFn` is passed an array of `fromDb()` mapped rows and its result is awaited. The paging process can be halted early by returning the `storeSymbols.pageBreak` symbol from the `pageFn`.
 
 **forEachPage** is an older, deprecated method that functions similar to `queryByPage`, but uses a pre-canned query that pages the entire `typeIndex` for the current store. This behavior (and more!) is possible with `queryByPage`.
+
+## Modeling Relationships
+
+In Graph Theory an [edge](https://en.wikipedia.org/wiki/Glossary_of_graph_theory#edge) is a relationship between two nodes. Since DynamoDB is a NoSQL store there are no native relationships, but they can be simulated by creating records that use the _primary_ and _sort_ keys on the table. These records are called _edges_. Arc has tools for managing _edges_ modelling either parent-child relationships (one-to-many) or associative relationships (many-to-many).
+
+There are two classes for working with _edges_.
+
+* `EdgeStore` - Used for managing edges in an associative relationship
+* `BaseEdgeStore` - Used for managing edges in an associative relationship. This Class is intended to provide additional flexibility for cases when the safety checks or automatic edge-selection on the `EdgeStore` or `ChildStore` are too restrictive. When possible prefer the `EdgeStore` or `ChildStore`.
+
+### How it works
+
+Here is an example of a parent child relationship as it would appear in Dynamo
+
+```javascript
+const node = { id: '_USER_:4332' }
+const edge = { id: '_USER_PREF_:4332', sort_key: 'volume', /* ... */}
+```
+
+Notice how in the edge-record the id is the same as the User ID. This allows a query to select all of the _user preference relationship_ by knowing only the User ID and the type (`_USER_PREF_`).
+
+Here is an example of a two-way relationship
+
+```javascript
+const user = { id: '_USER_:4332' }
+const team = { id: '_TEAM_:8867' }
+const edge = {
+  id: '_USER_TEAM_MEMBER_:4332',
+  sort_key: '8867',
+  gsi1_key: '_USER_TEAM_MEMBER_:8867',
+  gsi1_sort: '4332' 
+  /* ... */
+}
+```
+
+Here, again, a relationship to one node is stored on the primary key. A secondary relationship is modeled on a GSI, using the same method. This allows a two-way, or "many-to-many", relationship to be modeled.
+
+### Child Relationships
+
+Modeling child relationships can be done using the standard store and a Global Secondary Index (GSI).
+
+A common one-to-many relationship is a set of object with a single "owner".
+
+```ts
+
+import { Store, StoreSubConfig } from 'dynamo-arc'
+
+class ProjectStore extends Store<Project> {
+  constructor({ dynamo }: StoreSubConfig<Project>) {
+    super({
+      dynamo,
+      type: '_PROJECT_',
+      idKey: 'id',
+      sortKey: 'ownerId',
+    })
+  }
+
+  async getByOwnerId(ownerId) {
+    return this.queryAll({
+      IndexName: 'gsi1-index',
+      ScanIndexForward: false,
+      KeyConditionExpression: '#ownerId = :ownerId',
+      ExpressionAttributeNames: { '#ownerId': 'gsi1_key' },
+      ExpressionAttributeValues: { ':ownerId': this.typeKey(item.ownerId) }
+    })
+  }
+
+  toDb(item) {
+    return {
+      ...super.toDb(item),
+      // custom owner index used by getByOwnerId
+      gsi1_key: this.typeKey(item.ownerId), 
+      gsi1_sort: item.id
+    }
+  }
+}
+
+const projectStore = new ProjectStore({ dynamo })
+
+const projectA = { id: 'a', ownerId: 'X' }
+const projectB = { id: 'b', ownerId: 'X' }
+
+await projectStore.put(projectA)
+await projectStore.put(projectB)
+
+const [a, b] = await projectStore.getByOwnerId('X')
+
+```
+
+The above example demonstrates everything needed for a parent-child (one-to-many) relationship between an owner and a project. Since DynamoDB can have up to 20 GSIs per total (previously 5) each type can have 20 unique parent-child relationships modeled.
+
+### Associate Relationships with `EdgeStore`
+
+The `EdgeStore` simplifies working with many-to-many relationships between two types. It requires the `dynamo` client to be configured with a `sortField`. It must also be provided a `secondaryIndex` in its constructor to use as a GSI for selecting secondary edges.
+
+**Associate Relationship Configuration**
+
+```typescript
+import { EdgeStore, EdgeStoreSubConfig } from 'dyanamo-arc'
+
+interface User {
+  id: string
+  teams: Team[]
+}
+
+interface Team {
+  id: string
+  members: User[]
+}
+
+interface UserTeam {
+  userId: string
+  teamId: string
+  role: string
+}
+
+class UserTeamStore extends EdgeStore<UserTeam> {
+  // The EdgeStoreSubConfig simplifies sub-class configs by omitting
+  // properties that are expected to be hard-coded, such as the strings below
+  // This allows new UserTeamStore() to safely provide only "dynamo"
+  constructor({ dynamo }: EdgeStoreSubConfig<UserTeam>) {
+    super({
+      dynamo,
+      type: '_EGDE_',
+      idKey: 'userId',
+      sortKey: 'teamId',
+      secondaryIndex: 'gsi1-index',
+    })
+  }
+
+  // The EdgeStore makes its type-generic methods "protected"
+  // in order to force sub-classes to provide type-specific names
+  // Users of the UserTeamStore shouldn't have to track which of "user" or "team"
+  // is the "primary" or "secondary" nodes, they should be given clear names
+  async getTeamsForUser(userId: string): Promise<UserTeam>[] {
+    return this.getEdgesByPrimaryId(userId)
+  }
+
+  async getUsersOnTeam(teamId: string): Promise<UserTeam>[] {
+    return this.getEdgesBySecondaryId(teamId)
+  }
+}
+
+const userTeamStore = new UserTeamStore({ dynamo })
+
+const teamsForUserX = await userTeamStore.getTeamsForUser('X')
+const usersOnTeamA = await userTeamStore.getUsersOnTeam('a')
+
+// add user X to team b
+await userTeamStore.put({ userId: 'X', teamId: 'b', role: 'member' })
+
+// remove user X from team b
+await userTeamStore.delete('X', 'b')
+
+// force team b to have the following users
+await userTeamStore.syncEdgesBySecondary('b', [
+  { userId: 'X', teamId: 'b', role: 'member' },
+  { userId: 'Y', teamId: 'b', role: 'member' },
+])
+```
+
+> The `EdgeStoreSubConfig` is a utility type that simplifies the config of `EdgeStore` sub-classes by removing the properties that sub-class constructor would hard-code for the `EdgeStore`
+
+### BaseEdgeStore
+
+The `BaseEdgeStore` extends the `Store` with a pair of methods that assist with creating a `batchWriteAll` call to add and remove records. It is used by the `EdgeStore` to implement the `syncEdgesBy[Primary|Secondary]` and `getEdgesBy[Primary|Secondary]Id` functions. If the `EdgeStore` has an implementation that does not work with your model you can implement your own Edge Store on top of the `BaseEdgeStore`.
+
+The `BaseEdgeStore` implements the following
+
+* `async syncEdges(dbEdges: Edge[], edges: Edge[]): Promise<[Edge[], Edge[]]>`: Filter the provided edges and execute a `batchWriteAll` against Dynamo.
+* `protected filterEdges(leftEdges: Edge[], rightEdges: Edge[]): Edge[]`: Used to filter edges in the left that are missing from the right. The default implementation compares the keys defined for the store.
+
