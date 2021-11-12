@@ -1,74 +1,58 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 // import { describe, it, expect } from '@jest/globals'
 
-import { ChildStore, ChildStoreSubConfig } from '../childStore'
+import { ChildStore, ChildStoreSubConfig, _idKeyForChildRecord } from '../childStore'
 import { _ttlField, _idField, _sortField, _typeIndex, ArcDynamoClient } from '../dynamo'
 
 import type { QueryCommandOutput } from '@aws-sdk/lib-dynamodb'
 
 import { testClient } from './util'
 
-interface Parent {
+interface Order {
   id: string
-  children: Child[]
+  items: Item[]
 }
 
-interface Child {
+interface Item {
   id: string
-  parentId: string
-}
-
-class TestChildStore extends ChildStore<Parent, Child> {
-  constructor({ dynamo }: ChildStoreSubConfig<Parent, Child>) {
-    super({
-      dynamo,
-      type: '_PARENTCHILD_',
-      parentIdKey: 'id',
-      parentChildKey: 'children',
-      childIdKey: 'id',
-      childParentIdKey: 'parentId',
-    })
-  }
 }
 
 describe('ChildStore subclassing', () => {
   it('allows subclassing', () => {
-    class TestChildStore extends ChildStore<Parent, Child> {
-      constructor({ dynamo }: ChildStoreSubConfig<Parent, Child>) {
+    class OrderItemStore extends ChildStore<Order, Item> {
+      constructor({ dynamo }: ChildStoreSubConfig<Order, Item>) {
         super({
           dynamo,
-          type: '_PARENTCHILD_',
+          type: '_ORDER_ITEM_',
           parentIdKey: 'id',
-          parentChildKey: 'children',
           childIdKey: 'id',
-          childParentIdKey: 'parentId',
+          parentChildKey: 'items',
         })
       }
     }
-    expect(TestChildStore).toBeDefined()
+    expect(OrderItemStore).toBeDefined()
   })
   it('throws if subclass has bad parentIdKey', () => {
-    class TestChildStore extends ChildStore<Parent, Child> {
-      constructor({ dynamo }: ChildStoreSubConfig<Parent, Child>) {
+    class OrderItemStore extends ChildStore<Order, Item> {
+      constructor({ dynamo }: ChildStoreSubConfig<Order, Item>) {
         super({
           dynamo,
-          type: '_PARENTCHILD_',
+          type: '_ORDER_ITEM_',
           // @ts-expect-error Type '"parentIdKey"' is not assignable to type '"id" | "children"'
           parentIdKey: 'other',
-          parentChildKey: 'children',
           childIdKey: 'id',
-          childParentIdKey: 'parentId',
+          parentChildKey: 'items',
         })
       }
     }
-    expect(TestChildStore).toBeDefined()
+    expect(OrderItemStore).toBeDefined()
   })
   it('throws if subclass has bad parentChildKey', () => {
-    class TestChildStore extends ChildStore<Parent, Child> {
-      constructor({ dynamo }: ChildStoreSubConfig<Parent, Child>) {
+    class OrderItemStore extends ChildStore<Order, Item> {
+      constructor({ dynamo }: ChildStoreSubConfig<Order, Item>) {
         super({
           dynamo,
-          type: '_PARENTCHILD_',
+          type: '_ORDER_ITEM_',
           parentIdKey: 'id',
           // @ts-expect-error Type '"parentIdKey"' is not assignable to type '"id" | "children"'
           parentChildKey: 'other',
@@ -77,122 +61,149 @@ describe('ChildStore subclassing', () => {
         })
       }
     }
-    expect(TestChildStore).toBeDefined()
+    expect(OrderItemStore).toBeDefined()
   })
   it('throws if subclass has bad parentIdKey', () => {
-    class TestChildStore extends ChildStore<Parent, Child> {
-      constructor({ dynamo }: ChildStoreSubConfig<Parent, Child>) {
+    class OrderItemStore extends ChildStore<Order, Item> {
+      constructor({ dynamo }: ChildStoreSubConfig<Order, Item>) {
         super({
           dynamo,
-          type: '_PARENTCHILD_',
+          type: '_ORDER_ITEM_',
           parentIdKey: 'id',
-          parentChildKey: 'children',
+          parentChildKey: 'items',
           // @ts-expect-error Type '"childIdKey"' is not assignable to type '"id"
           childIdKey: 'other',
           childParentIdKey: 'parentId',
         })
       }
     }
-    expect(TestChildStore).toBeDefined()
+    expect(OrderItemStore).toBeDefined()
   })
 })
 
 describe('ChildStore', () => {
   it('syncEdgesByParent with parent batchWrites changes', async () => {
+    class OrderItemStore extends ChildStore<Order, Item> {
+      constructor({ dynamo }: ChildStoreSubConfig<Order, Item>) {
+        super({
+          dynamo,
+          type: '_ORDER_ITEM_',
+          parentIdKey: 'id',
+          childIdKey: 'id',
+          parentChildKey: 'items',
+        })
+      }
+
+      async syncByOrder(order: Order): Promise<[Item[], Item[]]>
+      async syncByOrder(orderId: string, items: Item[]): Promise<[Item[], Item[]]>
+      async syncByOrder(orderOrOrderId: Order | string, items?: Item[]): Promise<[Item[], Item[]]> {
+        return this.syncEdgesByParent(orderOrOrderId, items)
+      }
+    }
+
     const dynamo = testClient()
     dynamo.batchWriteAll.resolves()
-    const store = new TestChildStore({ dynamo: (dynamo as unknown) as ArcDynamoClient })
+    const store = new OrderItemStore({ dynamo: (dynamo as unknown) as ArcDynamoClient })
 
-    const dbChildren = [
-      { id: 'keep', parentId: 'a' },
-      { id: 'remove', parentId: 'a' },
-    ]
-    const children = [
-      { id: 'keep', parentId: 'a' },
-      { id: 'add', parentId: 'a' },
-    ]
-    const parent = {
+    const dbItems = [{ id: 'keep' }, { id: 'remove' }]
+    const items = [{ id: 'keep' }, { id: 'add' }]
+    const order = {
       id: 'a',
-      children,
+      items,
     }
     dynamo.queryAll.resolves(({
-      Items: dbChildren.map((e) => store.toDb(e)),
+      Items: dbItems.map((e) => store.toDb({ ...e, [_idKeyForChildRecord]: order.id })),
     } as unknown) as QueryCommandOutput)
 
-    const [added, removed] = await store.syncEdgesByParent(parent)
+    const [added, removed] = await store.syncByOrder(order)
 
     expect(dynamo.queryAll.firstCall.args[0]).toEqual(
       expect.objectContaining({
         TableName: 'test-table',
-        ExpressionAttributeValues: { ':id': '_PARENTCHILD_:a' },
+        ExpressionAttributeValues: { ':id': '_ORDER_ITEM_:a' },
       })
     )
 
     expect(dynamo.batchWriteAll.firstCall.args[0]?.RequestItems?.['test-table']).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          DeleteRequest: { Key: { id: '_PARENTCHILD_:a', sort_key: 'remove' } },
+          DeleteRequest: { Key: { id: '_ORDER_ITEM_:a', sort_key: 'remove' } },
         }),
         expect.objectContaining({
           PutRequest: {
             Item: expect.objectContaining({
-              id: '_PARENTCHILD_:a',
+              id: '_ORDER_ITEM_:a',
               sort_key: 'add',
-              data: { parentId: 'a', id: 'add' },
+              data: { id: 'add' },
             }),
           },
         }),
       ])
     )
 
-    expect(added).toEqual([{ id: 'add', parentId: 'a' }])
-    expect(removed).toEqual([{ id: 'remove', parentId: 'a' }])
+    expect(added).toEqual([expect.objectContaining({ id: 'add' })])
+    expect(removed).toEqual([expect.objectContaining({ id: 'remove' })])
   })
 
   it('syncEdgesByParent with parentId batchWrites changes', async () => {
+    class OrderItemStore extends ChildStore<Order, Item> {
+      constructor({ dynamo }: ChildStoreSubConfig<Order, Item>) {
+        super({
+          dynamo,
+          type: '_ORDER_ITEM_',
+          parentIdKey: 'id',
+          childIdKey: 'id',
+        })
+      }
+
+      async syncByOrder(order: Order): Promise<[Item[], Item[]]>
+      async syncByOrder(orderId: string, items: Item[]): Promise<[Item[], Item[]]>
+      async syncByOrder(orderOrOrderId: Order | string, items?: Item[]): Promise<[Item[], Item[]]> {
+        return this.syncEdgesByParent(orderOrOrderId, items)
+      }
+    }
+
     const dynamo = testClient()
     dynamo.batchWriteAll.resolves()
-    const store = new TestChildStore({ dynamo: (dynamo as unknown) as ArcDynamoClient })
+    const store = new OrderItemStore({ dynamo: (dynamo as unknown) as ArcDynamoClient })
 
-    const dbChildren = [
-      { id: 'keep', parentId: 'a' },
-      { id: 'remove', parentId: 'a' },
-    ]
-    const children = [
-      { id: 'keep', parentId: 'a' },
-      { id: 'add', parentId: 'a' },
-    ]
+    const dbItems = [{ id: 'keep' }, { id: 'remove' }]
+    const items = [{ id: 'keep' }, { id: 'add' }]
+    const order = {
+      id: 'a',
+      items,
+    }
     dynamo.queryAll.resolves(({
-      Items: dbChildren.map((e) => store.toDb(e)),
+      Items: dbItems.map((e) => store.toDb({ ...e, [_idKeyForChildRecord]: order.id })),
     } as unknown) as QueryCommandOutput)
 
-    const [added, removed] = await store.syncEdgesByParent('a', children)
+    const [added, removed] = await store.syncByOrder(order.id, items)
 
     expect(dynamo.queryAll.firstCall.args[0]).toEqual(
       expect.objectContaining({
         TableName: 'test-table',
-        ExpressionAttributeValues: { ':id': '_PARENTCHILD_:a' },
+        ExpressionAttributeValues: { ':id': '_ORDER_ITEM_:a' },
       })
     )
 
     expect(dynamo.batchWriteAll.firstCall.args[0]?.RequestItems?.['test-table']).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          DeleteRequest: { Key: { id: '_PARENTCHILD_:a', sort_key: 'remove' } },
+          DeleteRequest: { Key: { id: '_ORDER_ITEM_:a', sort_key: 'remove' } },
         }),
         expect.objectContaining({
           PutRequest: {
             Item: expect.objectContaining({
-              id: '_PARENTCHILD_:a',
+              id: '_ORDER_ITEM_:a',
               sort_key: 'add',
-              data: { parentId: 'a', id: 'add' },
+              data: { id: 'add' },
             }),
           },
         }),
       ])
     )
 
-    expect(added).toEqual([{ id: 'add', parentId: 'a' }])
-    expect(removed).toEqual([{ id: 'remove', parentId: 'a' }])
+    expect(added).toEqual([expect.objectContaining({ id: 'add' })])
+    expect(removed).toEqual([expect.objectContaining({ id: 'remove' })])
   })
 })

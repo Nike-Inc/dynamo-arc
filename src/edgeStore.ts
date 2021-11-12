@@ -54,10 +54,11 @@ export class BaseEdgeStore<Edge> extends Store<Edge> {
   }
 
   protected filterEdges(leftEdges: Edge[], rightEdges: Edge[]): Edge[] {
-    return leftEdges.filter(
-      (edge) =>
-        !rightEdges.some((e) => areKeysEqual(this[_dynamo], this.getKey(e), this.getKey(edge)))
-    )
+    return leftEdges.filter((edge) => !rightEdges.some((e) => this.areKeysEqual(e, edge)))
+  }
+
+  protected areKeysEqual(left: Edge, right: Edge): boolean {
+    return areKeysEqual(this[_dynamo], this.getKey(left), this.getKey(right))
   }
 }
 

@@ -464,53 +464,75 @@ The `BaseEdgeStore` implements the following
 * `async syncEdges(dbEdges: Edge[], edges: Edge[]): Promise<[Edge[], Edge[]]>`: Filter the provided edges and execute a `batchWriteAll` against Dynamo.
 * `protected filterEdges(leftEdges: Edge[], rightEdges: Edge[]): Edge[]`: Used to filter edges in the left that are missing from the right. The default implementation compares the keys defined for the store.
 
-### ChildStore (Coming Soon)
+### ChildStore
 
-> The ChildStore has not yet been released due to challenges with its API design. 
+> The ChildStore API yet been finalized due to challenges with typing it
 
-The `ChildStore` simplifies working with the children in a parent-child relationship
+The `ChildStore` simplifies working with the children in a parent-child relationship. While it is possible to keep many children as properties in the parent document it can be useful to keep the children in their own records in order to
+
+* search for children records using their keys
+* simplify isolated updates to children without updating the parent
+* keep children that might otherwise exceed the DynamoDB record limit if stored with their parent
+* allow paging through children; for very large sets (currently requires manual implementation)
 
 **Parent-Child Example**
 
 ```typescript
 import { ChildStore } from 'dyanamo-arc'
 
-interface Parent {
+interface Order {
   id: string
-  children: Child[]
+  items: OrderItem[]
 }
 
-interface Child {
-  id: string
+interface OrderItem {
+  itemId: string
+  quantity
 }
 
-const childrenStore = new ChildStore<Child, Parent>({
-  dynamo, // requires `sortKey`
-  idKey: 'id',
-  type: '_PARENTCHILD_',
-  childKey: 'children',
-  parentIdKey: 'id',
-})
+class OrderItemStore extends ChildStore<Order, OrderItem> {
+  constructor({ dynamo }: ChildStoreSubConfig<Order, OrderItem>) {
+    super({
+      dynamo,
+      type: '_ORDER_ITEM_',
+      parentIdKey: 'id',
+      childIdKey: 'id',
+      parentChildKey: 'items',
+    })
+  }
 
-const child1 = { id: '1' }
-const child2 = { id: '2' }
+  async syncByOrder(order: Order): Promise<[OrderItem[], OrderItem[]]>
+  async syncByOrder(orderId: string, items: OrderItem[]): Promise<[OrderItem[], OrderItem[]]>
+  async syncByOrder(orderOrOrderId: Order | string, items?: OrderItem[]): Promise<[OrderItem[], OrderItem[]]> {
+    return this.syncEdgesByParent(orderOrOrderId, items)
+  }
 
-const parent = {
-  id: '1234',
-  children: [child1, child2]
+  async getByOrderId(orderId: string): Promise<OrderItem> {
+    return this.getByParentId(orderId)
+  }
+}
+
+const orderItemStore = new OrderItemStore({ dynamo /* requires `sortKey` */ })
+
+const itemA = { itemId: 'a', quantity: 1 }
+const itemB = { itemId: 'b', quantity: 2 }
+
+const order = {
+  id: '1',
+  items: [itemA, itemB]
 }
 
 // Save children to DB
-await childrenStore.syncEdgesByParent(parent)
+await childrenStore.syncByOrder(order)
 // OR
-await childrenStore.syncEdgesByParent(parent.id, parent.children)
+await childrenStore.syncByOrder(order.id, [itemA, itemB])
 
 // Modify children
 parent.children.pop()
 
 // Remove last child from DB
-await childrenStore.syncEdgesByParent(parent)
+await childrenStore.syncByOrder(parent)
 
 // Fetch children from DB
-const dbChildren = await childrenStore.getByParentId(parent.id)
+const dbChildren = await childrenStore.getByOrderId(parent.id)
 ```
