@@ -15,21 +15,25 @@ export interface ChildStoreConfig<Parent, Child>
   /** property on the primary node that contains the id key. */
   parentIdKey: keyof Parent & string
   /** property on the primary node that contains an array of edges */
-  parentChildKey: keyof Parent & string
+  parentChildKey?: keyof Parent & string
   /** property on the child node that contains its id key. Used as the record's sortKey */
   childIdKey: keyof Child & string
 }
 
+export type ChildStoreSubConfig<Parent, Child> = Omit<
+  ChildStoreConfig<Parent, Child>,
+  'type' | 'parentIdKey' | 'parentChildKey' | 'childIdKey' | 'childParentIdKey'
+>
+
 export class ChildStore<Parent, Child> extends BaseEdgeStore<ChildRecord<Child>> {
   public readonly [_parentIdKey]: string
-  public readonly [_parentChildKey]: string
+  public readonly [_parentChildKey]?: string
 
   constructor(props: ChildStoreConfig<Parent, Child>) {
     super({ ...props, idKey: _idKeyForChildRecord, sortKey: props.childIdKey })
     if (!this[_dynamo][_sortField]) {
       throw new Error('ChildStore requires the dynamo client to have a sortField')
     }
-    if (!props.parentChildKey) throw new Error('"parentChildKey" is required')
     if (!props.parentIdKey) throw new Error('"parentIdKey" is required')
     this[_parentChildKey] = props.parentChildKey
     this[_parentIdKey] = props.parentIdKey
@@ -39,13 +43,22 @@ export class ChildStore<Parent, Child> extends BaseEdgeStore<ChildRecord<Child>>
    * Add/remove children to match
    * @return {*} {Promise<[Child[], Child[]]>} Returns an array of [edgesAdded, edgesRemoved]
    */
-  async syncEdgesByParent(parent: Parent): Promise<[Child[], Child[]]>
-  async syncEdgesByParent(parentId: string, children: Child[]): Promise<[Child[], Child[]]>
-  async syncEdgesByParent(
+  protected async syncEdgesByParent(parent: Parent): Promise<[Child[], Child[]]>
+  protected async syncEdgesByParent(
+    parentId: string,
+    children: Child[]
+  ): Promise<[Child[], Child[]]>
+  protected async syncEdgesByParent(
+    parentOrParentId: Parent | string,
+    children?: Child[]
+  ): Promise<[Child[], Child[]]>
+  protected async syncEdgesByParent(
     parentOrParentId: Parent | string,
     children?: Child[]
   ): Promise<[Child[], Child[]]> {
     if (typeof parentOrParentId === 'string' && !children) throw new Error('"children" is required')
+    if (!this[_parentChildKey] && !children)
+      throw new Error('"children" is required when no parentChildKey is defined')
 
     const parentId =
       typeof parentOrParentId === 'string'
@@ -68,13 +81,26 @@ export class ChildStore<Parent, Child> extends BaseEdgeStore<ChildRecord<Child>>
     return ((parent as any)?.[_parentChildKey] as Child[]) ?? []
   }
 
-  async getByParentId(parentId: string): Promise<ChildRecord<Child>[]> {
+  protected async getByParentId(parentId: string): Promise<ChildRecord<Child>[]> {
     return this.queryAll({
       ScanIndexForward: false,
       KeyConditionExpression: '#id = :id',
       ExpressionAttributeNames: { '#id': this[_dynamo][_idField] },
       ExpressionAttributeValues: { ':id': this.typeKey(parentId) },
     })
+  }
+
+  toDb(item: Child): DbItem<Edge> {
+    const gsiKey = this[_secondaryIndex].idField
+    const gsiSort = this[_secondaryIndex].sortField
+
+    return {
+      ...super.toDb(item),
+      [gsiKey]: this.typeKey(
+        ((item as unknown) as TableKey)[(this[_sortKey] as unknown) as string]
+      ),
+      [gsiSort]: ((item as unknown) as TableKey)[(this[_idKey] as unknown) as string],
+    }
   }
 }
 

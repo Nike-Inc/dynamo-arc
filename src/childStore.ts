@@ -13,8 +13,8 @@ export interface ChildStoreConfig<Parent, Child>
   parentChildKey: keyof Parent & string
   /** property on the child node that contains its id. Used as the record's sortKey */
   childIdKey: keyof Child & string
-  /** property on the child node that contains its parent id key. Necessary to allow serialization of idKey: parentId, sortKey: childId */
-  childParentIdKey: keyof Child & string
+  /** property on the child node that contains its parent id key. Useful to allow serialization of idKey: parentId, sortKey: childId */
+  childParentIdKey?: keyof Child & string
 }
 
 export type ChildStoreSubConfig<Parent, Child> = Omit<
