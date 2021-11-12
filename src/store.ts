@@ -1,4 +1,4 @@
-import {
+import type {
   QueryCommandInput,
   QueryCommandOutput,
   ScanCommandInput,
@@ -6,7 +6,7 @@ import {
   BatchWriteCommandOutput,
   ScanCommandOutput,
 } from '@aws-sdk/lib-dynamodb'
-import { HttpHandlerOptions } from '@aws-sdk/types'
+import type { HttpHandlerOptions } from '@aws-sdk/types'
 
 import {
   ArcDynamoClient,
@@ -41,7 +41,7 @@ export interface StoreConfig<T> {
   dynamo: ArcDynamoClient
   /** The type of the item, will be prefixed into the id */
   type: string
-  idKey: keyof T & string
+  idKey: keyof T & (string | symbol)
   sortKey?: (keyof T & string) | undefined
   /** Delimits the type and the id, as well as any supplemental id segments */
   delimiter?: string
@@ -80,7 +80,7 @@ export abstract class Store<T> {
   public readonly [_type]: string
   public readonly [_dynamo]: ArcDynamoClient
   public readonly [_logger]: Logger
-  public readonly [_idKey]: keyof T & string
+  public readonly [_idKey]: keyof T & (string | symbol)
   public readonly [_sortKey]?: (keyof T & string) | undefined
   public readonly [_delimiter]: string
 

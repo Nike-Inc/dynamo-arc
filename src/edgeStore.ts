@@ -19,6 +19,7 @@ export class BaseEdgeStore<Edge> extends Store<Edge> {
     if (!props.sortKey) throw new Error('"sortKey" is required')
     super(props)
   }
+
   /**
    * Add/remove edges so that the database matches the `edges` parameter
    * @return {*} {Promise<[Edge[], Edge[]]>} Returns an array of [edgesAdded, edgesRemoved]
@@ -38,6 +39,7 @@ export class BaseEdgeStore<Edge> extends Store<Edge> {
     }))
 
     const changes = deleteBatch.concat(putBatch)
+
     if (!changes.length) return [edgesToAdd, edgesToRemove]
 
     // Write Changes
@@ -52,7 +54,10 @@ export class BaseEdgeStore<Edge> extends Store<Edge> {
   }
 
   protected filterEdges(leftEdges: Edge[], rightEdges: Edge[]): Edge[] {
-    return leftEdges.filter((edge) => !rightEdges.some((e) => areKeysEqual(this[_dynamo], e, edge)))
+    return leftEdges.filter(
+      (edge) =>
+        !rightEdges.some((e) => areKeysEqual(this[_dynamo], this.getKey(e), this.getKey(edge)))
+    )
   }
 }
 
@@ -64,6 +69,8 @@ export interface EdgeStoreConfig<Edge> extends StoreConfig<Edge> {
    */
   secondaryIndex: string
 }
+
+export type EdgeStoreSubConfig<Edge> = Omit<StoreConfig<Edge>, 'type' | 'idKey' | 'sortKey'>
 
 export class EdgeStore<Edge> extends BaseEdgeStore<Edge> {
   public readonly [_secondaryIndex]: ArcIndexWithSort
@@ -87,7 +94,10 @@ export class EdgeStore<Edge> extends BaseEdgeStore<Edge> {
    * Add/remove edges so that the database matches the relationships on the primary node
    * @return {*} {Promise<[Edge[], Edge[]]>} Returns an array of [edgesAdded, edgesRemoved]
    */
-  async syncEdgesByPrimary(primaryNodeId: string, edges: Edge[]): Promise<[Edge[], Edge[]]> {
+  protected async syncEdgesByPrimary(
+    primaryNodeId: string,
+    edges: Edge[]
+  ): Promise<[Edge[], Edge[]]> {
     const dbEdges = await this.getEdgesByPrimaryId(primaryNodeId)
 
     return this.syncEdges(dbEdges, edges)
@@ -97,13 +107,16 @@ export class EdgeStore<Edge> extends BaseEdgeStore<Edge> {
    * Add/remove edges so that the database matches the relationships on the secondary node
    * @return {*} {Promise<[Edge[], Edge[]]>} Returns an array of [edgesAdded, edgesRemoved]
    */
-  async syncEdgesBySecondary(secondaryNodeId: string, edges: Edge[]): Promise<[Edge[], Edge[]]> {
+  protected async syncEdgesBySecondary(
+    secondaryNodeId: string,
+    edges: Edge[]
+  ): Promise<[Edge[], Edge[]]> {
     const dbEdges = await this.getEdgesBySecondaryId(secondaryNodeId)
 
     return this.syncEdges(dbEdges, edges)
   }
 
-  async getEdgesByPrimaryId(primaryId: string): Promise<Edge[]> {
+  protected async getEdgesByPrimaryId(primaryId: string): Promise<Edge[]> {
     return this.queryAll({
       ScanIndexForward: false,
       KeyConditionExpression: '#id = :id',
@@ -112,7 +125,7 @@ export class EdgeStore<Edge> extends BaseEdgeStore<Edge> {
     })
   }
 
-  async getEdgesBySecondaryId(secondaryId: string): Promise<Edge[]> {
+  protected async getEdgesBySecondaryId(secondaryId: string): Promise<Edge[]> {
     const index = this[_secondaryIndex]
 
     return this.queryAll({

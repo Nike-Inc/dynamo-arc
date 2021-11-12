@@ -1,9 +1,11 @@
 module.exports = {
   roots: ['<rootDir>/src'],
-  testMatch: ['**/__tests__/**/*.+(ts|tsx|js)', '**/?(*.)+(spec|test).+(ts|tsx|js)'],
+  preset: 'ts-jest',
+  testMatch: ['<rootDir>/src/**/__tests__/**/?(*.)+(spec|test).+(ts|tsx|js)'],
   transform: {
     '^.+\\.(ts|tsx)$': 'ts-jest',
   },
   collectCoverage: true,
   coverageReporters: ['json', 'html'],
+  watchPlugins: ['jest-watch-typeahead/filename', 'jest-watch-typeahead/testname'],
 }

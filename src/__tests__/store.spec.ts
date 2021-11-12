@@ -1,9 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { describe, it, expect } from '@jest/globals'
-import { stub, SinonStubbedInstance } from 'sinon'
+import { stub } from 'sinon'
 
 import { Store, StoreConfig } from '../store'
-import { _ttlField, _idField, _sortField, _typeIndex, ArcDynamoClient, ArcConfig } from '../dynamo'
+import { _ttlField, _idField, _sortField, _typeIndex, ArcDynamoClient } from '../dynamo'
+
+import { testClient } from './util'
 
 interface TestItem {
   id: string
@@ -16,26 +18,6 @@ class TestStore extends Store<TestItem> {
     super({ dynamo, type: '_TESTITEM_', idKey: 'id', sortKey: 'owner' })
   }
 }
-
-const testClient = ({ hasSortField = true, sortField = 'sort_key' }: Partial<ArcConfig> = {}) =>
-  ({
-    [_typeIndex]: 'type-index',
-    getTableName: () => 'test-table',
-    [_idField]: 'id',
-    [_ttlField]: 'ttl',
-    [_sortField]: hasSortField ? sortField : undefined,
-    get: stub(),
-    put: stub(),
-    delete: stub(),
-    query: stub(),
-    scan: stub(),
-    batchGet: stub(),
-    batchWrite: stub(),
-    queryAll: stub(),
-    scanAll: stub(),
-    batchGetAll: stub(),
-    batchWriteAll: stub(),
-  } as SinonStubbedInstance<ArcDynamoClient>)
 
 describe('Store', () => {
   it('allows subclassing', () => {
@@ -180,7 +162,7 @@ describe('Store', () => {
 
   it('Store calls dynamo for get', async () => {
     const dynamo = testClient()
-    dynamo.get = stub()
+    // dynamo.get = stub()
     const store = new TestStore({
       dynamo: (dynamo as unknown) as ArcDynamoClient,
     })
