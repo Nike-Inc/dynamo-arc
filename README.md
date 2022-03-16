@@ -332,7 +332,7 @@ async getByOwnerId(ownerId) {
     ScanIndexForward: false,
     KeyConditionExpression: '#ownerId = :ownerId',
     ExpressionAttributeNames: { '#ownerId': 'gsi1_key' },
-    ExpressionAttributeValues: { ':ownerId': this.typeKey(item.ownerId) }
+    ExpressionAttributeValues: { ':ownerId': this.typeKey(ownerId) }
   })
 }
 ```
