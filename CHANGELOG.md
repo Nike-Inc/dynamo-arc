@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [2.2.1] - 2022-04-14
+## Fixed
+- `EdgeStore.getEdgesBySecondaryId` using incorrect key field for index
+
 ## [2.2.0] - 2021-11-12
 ## Added
 - `EdgeStore` for handling relationship records

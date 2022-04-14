@@ -193,6 +193,7 @@ describe('EdgeStore', () => {
     expect(added).toEqual([{ leftId: 'a', rightId: 'add' }])
     expect(removed).toEqual([{ leftId: 'a', rightId: 'remove' }])
   })
+
   it('syncEdgesBySecondary batchWrites changes', async () => {
     const dynamo = testClient()
     dynamo.batchWriteAll.resolves()
@@ -215,6 +216,7 @@ describe('EdgeStore', () => {
     expect(dynamo.queryAll.firstCall.args[0]).toEqual(
       expect.objectContaining({
         TableName: 'test-table',
+        ExpressionAttributeNames: { '#id': 'gsi1-key' },
         ExpressionAttributeValues: { ':id': '_EGDE_:b' },
       })
     )

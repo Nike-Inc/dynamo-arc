@@ -136,7 +136,7 @@ export class EdgeStore<Edge> extends BaseEdgeStore<Edge> {
       ScanIndexForward: false,
       IndexName: index.name,
       KeyConditionExpression: '#id = :id',
-      ExpressionAttributeNames: { '#id': this[_dynamo][_idField] },
+      ExpressionAttributeNames: { '#id': index.idField },
       ExpressionAttributeValues: { ':id': this.typeKey(secondaryId) },
     })
   }
