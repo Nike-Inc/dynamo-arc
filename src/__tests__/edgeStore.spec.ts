@@ -54,7 +54,7 @@ describe('BaseEdgeStore', () => {
   it('syncEdges batchWrites changes', async () => {
     const dynamo = testClient()
     dynamo.batchWriteAll.resolves()
-    const store = new TestBaseStore({ dynamo: (dynamo as unknown) as ArcDynamoClient })
+    const store = new TestBaseStore({ dynamo: dynamo as unknown as ArcDynamoClient })
 
     const dbEdges = [
       { leftId: 'a', rightId: 'keep' },
@@ -148,7 +148,7 @@ describe('EdgeStore', () => {
   it('syncEdgesByPrimary batchWrites changes', async () => {
     const dynamo = testClient()
     dynamo.batchWriteAll.resolves()
-    const store = new TestEdgeStore({ dynamo: (dynamo as unknown) as ArcDynamoClient })
+    const store = new TestEdgeStore({ dynamo: dynamo as unknown as ArcDynamoClient })
 
     const dbEdges = [
       { leftId: 'a', rightId: 'keep' },
@@ -158,9 +158,9 @@ describe('EdgeStore', () => {
       { leftId: 'a', rightId: 'keep' },
       { leftId: 'a', rightId: 'add' },
     ]
-    dynamo.queryAll.resolves(({
+    dynamo.queryAll.resolves({
       Items: dbEdges.map((e) => store.toDb(e)),
-    } as unknown) as QueryCommandOutput)
+    } as unknown as QueryCommandOutput)
 
     const [added, removed] = await store.syncLeft('a', edges)
 
@@ -197,7 +197,7 @@ describe('EdgeStore', () => {
   it('syncEdgesBySecondary batchWrites changes', async () => {
     const dynamo = testClient()
     dynamo.batchWriteAll.resolves()
-    const store = new TestEdgeStore({ dynamo: (dynamo as unknown) as ArcDynamoClient })
+    const store = new TestEdgeStore({ dynamo: dynamo as unknown as ArcDynamoClient })
 
     const dbEdges = [
       { leftId: 'keep', rightId: 'b' },
@@ -207,9 +207,9 @@ describe('EdgeStore', () => {
       { leftId: 'keep', rightId: 'b' },
       { leftId: 'add', rightId: 'b' },
     ]
-    dynamo.queryAll.resolves(({
+    dynamo.queryAll.resolves({
       Items: dbEdges.map((e) => store.toDb(e)),
-    } as unknown) as QueryCommandOutput)
+    } as unknown as QueryCommandOutput)
 
     const [added, removed] = await store.syncRight('b', edges)
 

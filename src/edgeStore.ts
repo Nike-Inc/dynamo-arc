@@ -147,10 +147,8 @@ export class EdgeStore<Edge> extends BaseEdgeStore<Edge> {
 
     return {
       ...super.toDb(item),
-      [gsiKey]: this.typeKey(
-        ((item as unknown) as TableKey)[(this[_sortKey] as unknown) as string]
-      ),
-      [gsiSort]: ((item as unknown) as TableKey)[(this[_idKey] as unknown) as string],
+      [gsiKey]: this.typeKey((item as unknown as TableKey)[this[_sortKey] as unknown as string]),
+      [gsiSort]: (item as unknown as TableKey)[this[_idKey] as unknown as string],
     }
   }
 }

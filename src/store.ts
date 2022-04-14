@@ -133,7 +133,7 @@ export abstract class Store<T> {
     return asKey(
       this[_dynamo],
       this.typeKey(idKey),
-      this[_sortKey] ? ((item[this[_sortKey] as keyof T] as unknown) as string) : undefined
+      this[_sortKey] ? (item[this[_sortKey] as keyof T] as unknown as string) : undefined
     )
   }
 
@@ -154,7 +154,7 @@ export abstract class Store<T> {
 
   /** Convert a plain JS object into a DynamoDB record */
   toDb(item: T): DbItem<T> {
-    const id = (item[this[_idKey]] as unknown) as string
+    const id = item[this[_idKey]] as unknown as string
     const data = { ...item }
 
     const dbItem = {
@@ -162,7 +162,7 @@ export abstract class Store<T> {
       type: this[_type],
       // This is to make it easier to find in the dynamo console
       typeId: id,
-      createdOn: ((item as unknown) as DbItem<T>).createdOn,
+      createdOn: (item as unknown as DbItem<T>).createdOn,
       updatedOn: Date.now(),
       data,
     }

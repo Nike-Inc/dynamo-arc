@@ -22,7 +22,7 @@ describe('Cache', () => {
     dynamo.get.resolves({ Item: { data: 1, ttl: Date.now() + 1000 } })
     const cacheFn = stub().resolves()
     const cache = new Cache({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
       metrics: createMetrics(),
     })
     const result = await cache.get('test', cacheFn)
@@ -37,7 +37,7 @@ describe('Cache', () => {
     dynamo.put.resolves(1)
     const cacheFn = stub().resolves(1)
     const cache = new Cache({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
       metrics: createMetrics(),
     })
     const result = await cache.get('test', cacheFn)
@@ -52,7 +52,7 @@ describe('Cache', () => {
     dynamo.put.resolves(1)
     const cacheFn = stub().resolves(1)
     const cache = new Cache({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
       metrics: createMetrics(),
     })
     const result = await cache.get('test', cacheFn)
@@ -69,7 +69,7 @@ describe('Cache', () => {
     dynamo.put.resolves(1)
     const cacheFn = stub().resolves(1)
     const cache = new Cache({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
       metrics: createMetrics(),
     })
     const result = await cache.get('test', cacheFn)
@@ -86,7 +86,7 @@ describe('Cache', () => {
     dynamo.put.resolves(1)
     const cacheFn = stub().resolves(1)
     const cache = new Cache({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
       metrics: createMetrics(),
     })
     await cache.get('test', cacheFn)
@@ -101,7 +101,7 @@ describe('Cache', () => {
     dynamo.put.resolves(1)
     const cacheFn = stub().resolves(1)
     const cache = new Cache({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
       metrics: createMetrics(),
     })
     await cache.get('test', cacheFn, { ttl: Date.now() + 100 })
@@ -114,7 +114,7 @@ describe('Cache', () => {
     dynamo.put.resolves(1)
     const cacheFn = stub().resolves(1)
     const cache = new Cache({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
       metrics: createMetrics(),
     })
     await cache.get('test', cacheFn, { clearAfter: 100 })
@@ -127,7 +127,7 @@ describe('Cache', () => {
     dynamo.put.resolves(1)
     const cacheFn = stub().resolves(1)
     const cache = new Cache({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
       metrics: createMetrics(),
     })
     await cache.get('test', cacheFn, { permanent: true })
@@ -141,7 +141,7 @@ describe('Cache', () => {
     })
     const cacheFn = stub().resolves()
     const cache = new Cache({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
       metrics: createMetrics(),
     })
     const result = await cache.get('test', cacheFn, { staleAfter: 500 })
@@ -158,7 +158,7 @@ describe('Cache', () => {
     dynamo.put.resolves(1)
     const cacheFn = stub().resolves(1)
     const cache = new Cache({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
       metrics: createMetrics(),
     })
     const result = await cache.get('test', cacheFn, { staleAfter: 500 })
@@ -175,7 +175,7 @@ describe('Cache', () => {
     dynamo.put.resolves(1)
     const cacheFn = stub().rejects(new Error('fail'))
     const cache = new Cache({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
       logger: { error: stub() },
       metrics: createMetrics(),
     })
@@ -193,7 +193,7 @@ describe('Cache', () => {
     dynamo.put.resolves(1)
     const cacheFn = stub().rejects(new Error('fail'))
     const cache = new Cache({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
       logger: { error: stub() },
       metrics: createMetrics(),
     })
@@ -211,7 +211,7 @@ describe('Cache', () => {
     const dynamo = testClient()
     dynamo.put.resolves(1)
     const cache = new Cache({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
       metrics: createMetrics(),
     })
     const result = await cache.set('test', 1)
@@ -224,7 +224,7 @@ describe('Cache', () => {
     const dynamo = testClient()
     dynamo.delete.resolves()
     const cache = new Cache({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
       metrics: createMetrics(),
     })
     await cache.clear('test')

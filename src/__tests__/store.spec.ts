@@ -52,7 +52,7 @@ describe('Store', () => {
   it('typeKey joins type', () => {
     const dynamo = testClient()
     const store = new TestStore({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
     })
     expect(store.typeKey('1')).toBe('_TESTITEM_:1')
   })
@@ -60,7 +60,7 @@ describe('Store', () => {
   it('getTableName returns tableName', () => {
     const dynamo = testClient()
     const store = new TestStore({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
     })
     expect(store.getTableName()).toBe('test-table')
   })
@@ -68,13 +68,13 @@ describe('Store', () => {
   it('asKey returns key object', () => {
     const dynamo = testClient()
     let store = new TestStore({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
     })
     expect(store.asKey('1')).toEqual({ id: '_TESTITEM_:1', sort_key: '_' })
     expect(store.asKey('1', '2')).toEqual({ id: '_TESTITEM_:1', sort_key: '2' })
 
     store = new TestStore({
-      dynamo: (testClient({ hasSortField: false }) as unknown) as ArcDynamoClient,
+      dynamo: testClient({ hasSortField: false }) as unknown as ArcDynamoClient,
     })
     expect(store.asKey('1')).toEqual({ id: '_TESTITEM_:1' })
   })
@@ -82,7 +82,7 @@ describe('Store', () => {
   it('getKey returns key object', () => {
     const dynamo = testClient()
     let store = new TestStore({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
     })
     expect(store.getKey({ id: '1' })).toEqual({ id: '_TESTITEM_:1', sort_key: '_' })
     // @ts-expect-error Type Object literal may only specify known properties
@@ -93,7 +93,7 @@ describe('Store', () => {
     expect(store.getKey({ id: '1', owner: '2' })).toEqual({ id: '_TESTITEM_:1', sort_key: '2' })
 
     store = new TestStore({
-      dynamo: (testClient({ hasSortField: false }) as unknown) as ArcDynamoClient,
+      dynamo: testClient({ hasSortField: false }) as unknown as ArcDynamoClient,
     })
     expect(store.asKey('1')).toEqual({ id: '_TESTITEM_:1' })
   })
@@ -101,7 +101,7 @@ describe('Store', () => {
   it('getKey returns key object with custom sort', () => {
     const dynamo = testClient()
     let store = new TestStore({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
     })
     expect(store.getKey({ id: '1' })).toEqual({ id: '_TESTITEM_:1', sort_key: '_' })
     // @ts-expect-error Type Object literal may only specify known properties
@@ -112,7 +112,7 @@ describe('Store', () => {
     expect(store.getKey({ id: '1', owner: '2' })).toEqual({ id: '_TESTITEM_:1', sort_key: '2' })
 
     store = new TestStore({
-      dynamo: (testClient({ hasSortField: false }) as unknown) as ArcDynamoClient,
+      dynamo: testClient({ hasSortField: false }) as unknown as ArcDynamoClient,
     })
     expect(store.asKey('1')).toEqual({ id: '_TESTITEM_:1' })
   })
@@ -120,7 +120,7 @@ describe('Store', () => {
   it('Store fromDb handles empty item', () => {
     const dynamo = testClient()
     const store = new TestStore({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
     })
     expect(store.fromDb()).toBe(null)
     expect(store.fromDb(undefined)).toBe(null)
@@ -131,7 +131,7 @@ describe('Store', () => {
   it('Store fromDb unwraps data', () => {
     const dynamo = testClient()
     const store = new TestStore({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
     })
     const thing = { id: 'test' } as TestItem
     expect(store.fromDb({ data: thing })).toBe(thing)
@@ -140,7 +140,7 @@ describe('Store', () => {
   it('Store toDb wraps input', () => {
     const dynamo = testClient()
     const store = new TestStore({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
     })
     const item = {
       id: 'id',
@@ -164,7 +164,7 @@ describe('Store', () => {
     const dynamo = testClient()
     // dynamo.get = stub()
     const store = new TestStore({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
     })
     dynamo.get.resolves({})
     await store.get('id')
@@ -177,9 +177,8 @@ describe('Store', () => {
 
   it('Store calls dynamo for put', async () => {
     const dynamo = testClient()
-    dynamo.put = stub()
     const store = new TestStore({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
     })
     dynamo.put.resolves({})
     await store.put({ id: 'id', name: 'test' } as TestItem)
@@ -190,9 +189,8 @@ describe('Store', () => {
 
   it('Store calls dynamo for delete', async () => {
     const dynamo = testClient()
-    dynamo.delete = stub()
     const store = new TestStore({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
     })
     dynamo.delete.resolves({})
     await store.delete('id')
@@ -207,7 +205,7 @@ describe('Store', () => {
     const dynamo = testClient()
     dynamo.query.resolves({ Items: [] })
     const store = new TestStore({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
     })
     await store.query({
       IndexName: 'type-index',
@@ -230,7 +228,7 @@ describe('Store', () => {
     const dynamo = testClient()
     dynamo.scan.resolves({ Items: [] })
     const store = new TestStore({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
     })
     const username = 'tester'
     await store.scan({
@@ -252,7 +250,7 @@ describe('Store', () => {
     const dynamo = testClient()
     dynamo.batchGet.resolves({ Items: [] })
     const store = new TestStore({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
     })
 
     const item = { id: '1' } as TestItem
@@ -272,7 +270,7 @@ describe('Store', () => {
     const dynamo = testClient()
     dynamo.batchWrite.resolves({ Items: [] })
     const store = new TestStore({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
     })
     const item = store.toDb({ id: '1' } as TestItem)
     await store.batchWrite([{ PutRequest: { Item: item } }])
@@ -289,7 +287,7 @@ describe('Store', () => {
     const dynamo = testClient()
     dynamo.queryAll.resolves({ Items: [], $metadata: {} })
     const store = new TestStore({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
     })
     await store.queryAll({
       IndexName: 'type-index',
@@ -312,7 +310,7 @@ describe('Store', () => {
     const dynamo = testClient()
     dynamo.scanAll.resolves({ Items: [], $metadata: {} })
     const store = new TestStore({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
     })
     const username = 'tester'
     await store.scanAll({
@@ -334,7 +332,7 @@ describe('Store', () => {
     const dynamo = testClient()
     dynamo.batchGetAll.resolves({ Responses: { [dynamo.getTableName()]: [] }, $metadata: {} })
     const store = new TestStore({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
     })
     const item = { id: '1' } as TestItem
     await store.batchGetAll([store.getKey(item)])
@@ -353,7 +351,7 @@ describe('Store', () => {
     const dynamo = testClient()
     dynamo.batchGetAll.rejects(new Error('should have avoided call'))
     const store = new TestStore({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
     })
     const result = await store.batchGetAll([])
     expect(result).toEqual([])
@@ -364,7 +362,7 @@ describe('Store', () => {
     const dynamo = testClient()
     dynamo.batchWriteAll.resolves()
     const store = new TestStore({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
     })
     const item = store.toDb({ id: '1' } as TestItem)
     await store.batchWriteAll([{ PutRequest: { Item: item } }])
@@ -381,7 +379,7 @@ describe('Store', () => {
     const dynamo = testClient()
     dynamo.batchWriteAll.rejects(new Error('should have avoided call'))
     const store = new TestStore({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
     })
     const result = await store.batchWriteAll([])
     expect(result).toEqual({ $metadata: {} })
@@ -392,7 +390,7 @@ describe('Store', () => {
     const dynamo = testClient()
     dynamo.queryAll.resolves({ Items: [], $metadata: {} })
     const store = new TestStore({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
     })
     await store.getAll()
     const expected = {
@@ -411,7 +409,7 @@ describe('Store', () => {
     dynamo.query.resolves({ Items: [] })
 
     const store = new TestStore({
-      dynamo: (dynamo as unknown) as ArcDynamoClient,
+      dynamo: dynamo as unknown as ArcDynamoClient,
     })
 
     const params = {

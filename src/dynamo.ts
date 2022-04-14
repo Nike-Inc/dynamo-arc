@@ -157,7 +157,7 @@ async function queryAll(
   delete params.ItemLimit
 
   // The double cast is to satisfy ts here, so it can be used in loop before its first declaration
-  let response: QueryCommandOutput = ({} as unknown) as QueryCommandOutput
+  let response: QueryCommandOutput = {} as unknown as QueryCommandOutput
   let workRemaining
   do {
     response = await this.query(
@@ -199,7 +199,7 @@ async function scanAll(
   delete params.ItemLimit
 
   // The double cast is to satisfy ts here, so it can be used in loop before its first declaration
-  let response: ScanCommandOutput = ({} as unknown) as ScanCommandOutput
+  let response: ScanCommandOutput = {} as unknown as ScanCommandOutput
   let workRemaining
   do {
     response = await this.scan(
