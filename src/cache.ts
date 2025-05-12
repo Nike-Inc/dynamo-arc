@@ -123,7 +123,7 @@ export class Cache {
   async batchGet<T>(
     /** will prioritize the first key.id that matches in the array */
     keys: BatchGetKeys[],
-    cacheMissFn: () => Promise<T>
+    cacheMissFn: () => Promise<T>,
   ): Promise<T> {
     const idField = this[_dynamo][_idField]
     const ttlField = this[_dynamo][_ttlField] as string

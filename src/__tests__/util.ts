@@ -17,7 +17,7 @@ export const testClient = ({
   hasSortField = true,
   sortField = 'sort_key',
 }: Partial<ArcConfig> = {}): SinonStubbedInstance<ArcDynamoClient> =>
-  (({
+  ({
     [_typeIndex]: 'type-index',
     [_indexes]: {
       'gsi1-index': { name: 'gsi1-index', idField: 'gsi1-key', sortField: 'gsi1-sort' },
@@ -38,7 +38,7 @@ export const testClient = ({
     scanAll: stub(),
     batchGetAll: stub(),
     batchWriteAll: stub(),
-  } as unknown) as SinonStubbedInstance<ArcDynamoClient>)
+  }) as unknown as SinonStubbedInstance<ArcDynamoClient>
 
 export function log(...args: unknown[]): void {
   console.log(...args.map((a) => util.inspect(a, false, null, true /* enable colors */)))

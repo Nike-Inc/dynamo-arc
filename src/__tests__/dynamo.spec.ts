@@ -11,7 +11,7 @@ describe('makeClient', () => {
     expect(() => makeClient({ tableName: 'a', clientConfig: {} })).toThrowError(/provide.+?region/)
     // @ts-expect-error table name missing
     expect(() => makeClient({ clientConfig: { region: 'us-west-2' } })).toThrowError(
-      /tableName.+?required/
+      /tableName.+?required/,
     )
   })
 

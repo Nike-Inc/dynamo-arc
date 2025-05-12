@@ -66,11 +66,11 @@ export interface ArcDynamoClient extends DynamoDBDocument {
   scanAll(params: ScanAllInput, options?: HttpHandlerOptions): Promise<ScanCommandOutput>
   batchGetAll(
     params: BatchGetItemAllInput,
-    options?: HttpHandlerOptions
+    options?: HttpHandlerOptions,
   ): Promise<BatchGetCommandOutput>
   batchWriteAll(
     params: BatchWriteItemAllInput,
-    options?: HttpHandlerOptions
+    options?: HttpHandlerOptions,
   ): Promise<BatchWriteCommandOutput>
   getTableName: () => string
   [_tableName]: string
@@ -112,12 +112,12 @@ export function makeClient(
     clientConfig,
     translateConfig = ArcTranslateDefaults,
   }: ArcConfig,
-  client?: DynamoDBClient
+  client?: DynamoDBClient,
 ): ArcDynamoClient {
   if (!tableName) throw new Error('"config.tableName" is required')
   if (!client && !clientConfig?.region) {
     throw new Error(
-      'Must provide either a client parameter or "config.clientConfig" with at least a "region"'
+      'Must provide either a client parameter or "config.clientConfig" with at least a "region"',
     )
   }
 
@@ -147,7 +147,7 @@ export function makeClient(
 async function queryAll(
   this: ArcDynamoClient,
   params: QueryAllInput,
-  options?: HttpHandlerOptions
+  options?: HttpHandlerOptions,
 ): Promise<QueryCommandOutput> {
   params = { ...params }
   let result: QueryCommandOutput | undefined = undefined
@@ -157,7 +157,7 @@ async function queryAll(
   delete params.ItemLimit
 
   // The double cast is to satisfy ts here, so it can be used in loop before its first declaration
-  let response: QueryCommandOutput = ({} as unknown) as QueryCommandOutput
+  let response: QueryCommandOutput = {} as unknown as QueryCommandOutput
   let workRemaining
   do {
     response = await this.query(
@@ -166,7 +166,7 @@ async function queryAll(
         ...params,
         ExclusiveStartKey: response?.LastEvaluatedKey,
       },
-      options
+      options,
     )
     // First run
     if (result === undefined) {
@@ -189,7 +189,7 @@ async function queryAll(
 async function scanAll(
   this: ArcDynamoClient,
   params: ScanAllInput,
-  options?: HttpHandlerOptions
+  options?: HttpHandlerOptions,
 ): Promise<ScanCommandOutput> {
   params = { ...params }
   let result: ScanCommandOutput | undefined = undefined
@@ -199,7 +199,7 @@ async function scanAll(
   delete params.ItemLimit
 
   // The double cast is to satisfy ts here, so it can be used in loop before its first declaration
-  let response: ScanCommandOutput = ({} as unknown) as ScanCommandOutput
+  let response: ScanCommandOutput = {} as unknown as ScanCommandOutput
   let workRemaining
   do {
     response = await this.scan(
@@ -208,7 +208,7 @@ async function scanAll(
         ...params,
         ExclusiveStartKey: response.LastEvaluatedKey,
       },
-      options
+      options,
     )
     // First run
     if (result === undefined) {
@@ -231,7 +231,7 @@ async function scanAll(
 async function batchGetAll(
   this: ArcDynamoClient,
   params: BatchGetItemAllInput,
-  options?: HttpHandlerOptions
+  options?: HttpHandlerOptions,
 ): Promise<BatchGetCommandOutput> {
   let metadata: MetadataBearer['$metadata'] = {}
   const requestPool: BatchGetItemAllInput['RequestItems'] = {
@@ -251,7 +251,7 @@ async function batchGetAll(
         ...params,
         RequestItems: batch,
       },
-      options
+      options,
     )
     metadata = response.$metadata
     if (response.Responses) {
@@ -278,7 +278,7 @@ async function batchGetAll(
 async function batchWriteAll(
   this: ArcDynamoClient,
   params: BatchWriteItemAllInput,
-  options?: HttpHandlerOptions
+  options?: HttpHandlerOptions,
 ): Promise<BatchWriteCommandOutput> {
   const requestPool = Object.assign({}, params.RequestItems)
   const pageSize = params.PageSize
@@ -292,7 +292,7 @@ async function batchWriteAll(
         ...params,
         RequestItems: batch,
       },
-      options
+      options,
     )
     const unprocessed =
       response.UnprocessedItems && Object.keys(response.UnprocessedItems).length !== 0
@@ -311,7 +311,7 @@ function sliceGetBatch(pool: BatchGetCommandInput['RequestItems'], pageSize = 25
   let requestCount = 0
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const batch: { [key: string]: any } = {}
-  // eslint-disable-next-line @typescript-eslint/ban-types
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
   const tables = Object.keys(pool as {})
   if (tables.length === 0) return
   tables.forEach((tableName) => {
@@ -332,7 +332,7 @@ function sliceWriteBatch(pool: BatchWriteItemAllInput['RequestItems'], pageSize 
   let requestCount = 0
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const batch: { [key: string]: any[] } = {}
-  // eslint-disable-next-line @typescript-eslint/ban-types
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
   const tables = Object.keys(pool as {})
   if (tables.length === 0) return
   tables.forEach((tableName) => {

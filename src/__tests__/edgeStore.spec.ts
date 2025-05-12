@@ -54,7 +54,7 @@ describe('BaseEdgeStore', () => {
   it('syncEdges batchWrites changes', async () => {
     const dynamo = testClient()
     dynamo.batchWriteAll.resolves()
-    const store = new TestBaseStore({ dynamo: (dynamo as unknown) as ArcDynamoClient })
+    const store = new TestBaseStore({ dynamo: dynamo as unknown as ArcDynamoClient })
 
     const dbEdges = [
       { leftId: 'a', rightId: 'keep' },
@@ -81,7 +81,7 @@ describe('BaseEdgeStore', () => {
             }),
           },
         }),
-      ])
+      ]),
     )
 
     expect(added).toEqual([{ leftId: 'a', rightId: 'add' }])
@@ -148,7 +148,7 @@ describe('EdgeStore', () => {
   it('syncEdgesByPrimary batchWrites changes', async () => {
     const dynamo = testClient()
     dynamo.batchWriteAll.resolves()
-    const store = new TestEdgeStore({ dynamo: (dynamo as unknown) as ArcDynamoClient })
+    const store = new TestEdgeStore({ dynamo: dynamo as unknown as ArcDynamoClient })
 
     const dbEdges = [
       { leftId: 'a', rightId: 'keep' },
@@ -158,9 +158,9 @@ describe('EdgeStore', () => {
       { leftId: 'a', rightId: 'keep' },
       { leftId: 'a', rightId: 'add' },
     ]
-    dynamo.queryAll.resolves(({
+    dynamo.queryAll.resolves({
       Items: dbEdges.map((e) => store.toDb(e)),
-    } as unknown) as QueryCommandOutput)
+    } as unknown as QueryCommandOutput)
 
     const [added, removed] = await store.syncLeft('a', edges)
 
@@ -170,7 +170,7 @@ describe('EdgeStore', () => {
       expect.objectContaining({
         TableName: 'test-table',
         ExpressionAttributeValues: { ':id': '_EGDE_:a' },
-      })
+      }),
     )
 
     expect(dynamo.batchWriteAll.firstCall.args[0]?.RequestItems?.['test-table']).toEqual(
@@ -187,7 +187,7 @@ describe('EdgeStore', () => {
             }),
           },
         }),
-      ])
+      ]),
     )
 
     expect(added).toEqual([{ leftId: 'a', rightId: 'add' }])
@@ -197,7 +197,7 @@ describe('EdgeStore', () => {
   it('syncEdgesBySecondary batchWrites changes', async () => {
     const dynamo = testClient()
     dynamo.batchWriteAll.resolves()
-    const store = new TestEdgeStore({ dynamo: (dynamo as unknown) as ArcDynamoClient })
+    const store = new TestEdgeStore({ dynamo: dynamo as unknown as ArcDynamoClient })
 
     const dbEdges = [
       { leftId: 'keep', rightId: 'b' },
@@ -207,9 +207,9 @@ describe('EdgeStore', () => {
       { leftId: 'keep', rightId: 'b' },
       { leftId: 'add', rightId: 'b' },
     ]
-    dynamo.queryAll.resolves(({
+    dynamo.queryAll.resolves({
       Items: dbEdges.map((e) => store.toDb(e)),
-    } as unknown) as QueryCommandOutput)
+    } as unknown as QueryCommandOutput)
 
     const [added, removed] = await store.syncRight('b', edges)
 
@@ -218,7 +218,7 @@ describe('EdgeStore', () => {
         TableName: 'test-table',
         ExpressionAttributeNames: { '#id': 'gsi1-key' },
         ExpressionAttributeValues: { ':id': '_EGDE_:b' },
-      })
+      }),
     )
 
     expect(dynamo.batchWriteAll.firstCall.args[0]?.RequestItems?.['test-table']).toEqual(
@@ -235,7 +235,7 @@ describe('EdgeStore', () => {
             }),
           },
         }),
-      ])
+      ]),
     )
 
     expect(added).toEqual([{ leftId: 'add', rightId: 'b' }])

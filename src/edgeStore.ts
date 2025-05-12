@@ -100,7 +100,7 @@ export class EdgeStore<Edge> extends BaseEdgeStore<Edge> {
    */
   protected async syncEdgesByPrimary(
     primaryNodeId: string,
-    edges: Edge[]
+    edges: Edge[],
   ): Promise<[Edge[], Edge[]]> {
     const dbEdges = await this.getEdgesByPrimaryId(primaryNodeId)
 
@@ -113,7 +113,7 @@ export class EdgeStore<Edge> extends BaseEdgeStore<Edge> {
    */
   protected async syncEdgesBySecondary(
     secondaryNodeId: string,
-    edges: Edge[]
+    edges: Edge[],
   ): Promise<[Edge[], Edge[]]> {
     const dbEdges = await this.getEdgesBySecondaryId(secondaryNodeId)
 
@@ -147,10 +147,8 @@ export class EdgeStore<Edge> extends BaseEdgeStore<Edge> {
 
     return {
       ...super.toDb(item),
-      [gsiKey]: this.typeKey(
-        ((item as unknown) as TableKey)[(this[_sortKey] as unknown) as string]
-      ),
-      [gsiSort]: ((item as unknown) as TableKey)[(this[_idKey] as unknown) as string],
+      [gsiKey]: this.typeKey((item as unknown as TableKey)[this[_sortKey] as unknown as string]),
+      [gsiSort]: (item as unknown as TableKey)[this[_idKey] as unknown as string],
     }
   }
 }

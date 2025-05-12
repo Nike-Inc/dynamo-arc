@@ -133,7 +133,7 @@ export abstract class Store<T> {
     return asKey(
       this[_dynamo],
       this.typeKey(idKey),
-      this[_sortKey] ? ((item[this[_sortKey] as keyof T] as unknown) as string) : undefined
+      this[_sortKey] ? (item[this[_sortKey] as keyof T] as unknown as string) : undefined,
     )
   }
 
@@ -154,7 +154,7 @@ export abstract class Store<T> {
 
   /** Convert a plain JS object into a DynamoDB record */
   toDb(item: T): DbItem<T> {
-    const id = (item[this[_idKey]] as unknown) as string
+    const id = item[this[_idKey]] as unknown as string
     const data = { ...item }
 
     const dbItem = {
@@ -162,7 +162,7 @@ export abstract class Store<T> {
       type: this[_type],
       // This is to make it easier to find in the dynamo console
       typeId: id,
-      createdOn: ((item as unknown) as DbItem<T>).createdOn,
+      createdOn: (item as unknown as DbItem<T>).createdOn,
       updatedOn: Date.now(),
       data,
     }
@@ -177,7 +177,7 @@ export abstract class Store<T> {
         TableName: this.getTableName(),
         Key: this.asKey(id, sortKey),
       },
-      options
+      options,
     )
     return this.fromDb(response.Item)
   }
@@ -189,7 +189,7 @@ export abstract class Store<T> {
         TableName: this.getTableName(),
         Item: this.toDb(item),
       },
-      options
+      options,
     )
     return item
   }
@@ -200,7 +200,7 @@ export abstract class Store<T> {
       items.map((item) => ({
         PutRequest: { Item: this.toDb(item) },
       })),
-      options
+      options,
     )
   }
 
@@ -211,7 +211,7 @@ export abstract class Store<T> {
         TableName: this.getTableName(),
         Key: this.asKey(id, sortKey),
       },
-      options
+      options,
     )
   }
 
@@ -221,21 +221,21 @@ export abstract class Store<T> {
       items.map((item) => ({
         DeleteRequest: { Key: this.getKey(item) },
       })),
-      options
+      options,
     )
   }
 
   /** Execute a query against the configured Dynamo table */
   async query(
     params: OptionalTableName<QueryCommandInput>,
-    options?: HttpHandlerOptions
+    options?: HttpHandlerOptions,
   ): Promise<QueryCommandOutput> {
     return this[_dynamo].query(
       {
         TableName: this.getTableName(),
         ...params,
       },
-      options
+      options,
     )
   }
 
@@ -249,7 +249,7 @@ export abstract class Store<T> {
         TableName: this.getTableName(),
         ...params,
       },
-      options
+      options,
     )
 
     if (!response?.Items?.length) return []
@@ -264,7 +264,7 @@ export abstract class Store<T> {
     params: QueryAllInput,
     /** Async function that receives an array of items from the current page. If it resolves `false` paging will stop  */
     pageFn: (page: T[]) => Promise<void | boolean>,
-    options?: HttpHandlerOptions
+    options?: HttpHandlerOptions,
   ): Promise<void> {
     let lastKey
 
@@ -275,7 +275,7 @@ export abstract class Store<T> {
           ...params,
           ExclusiveStartKey: lastKey,
         },
-        options
+        options,
       )
 
       if (!dbResult.Items) break
@@ -293,7 +293,7 @@ export abstract class Store<T> {
   async forEachPage(
     /** Async function that receives an array of items from the current page. If it resolves `false` paging will stop  */
     pageFn: (page: T[]) => Promise<void | boolean>,
-    pageSize = 100
+    pageSize = 100,
   ): Promise<void> {
     return this.queryByPage(
       {
@@ -303,7 +303,7 @@ export abstract class Store<T> {
         ExpressionAttributeValues: { ':type': this.typeKey() },
         Limit: pageSize,
       },
-      pageFn
+      pageFn,
     )
   }
 
@@ -314,14 +314,14 @@ export abstract class Store<T> {
    */
   async scan(
     params: OptionalTableName<ScanCommandInput>,
-    options?: HttpHandlerOptions
+    options?: HttpHandlerOptions,
   ): Promise<ScanCommandOutput> {
     return this[_dynamo].scan(
       {
         TableName: this.getTableName(),
         ...params,
       },
-      options
+      options,
     )
   }
 
@@ -336,7 +336,7 @@ export abstract class Store<T> {
         TableName: this.getTableName(),
         ...params,
       },
-      options
+      options,
     )
 
     if (!response?.Items?.length) return []
@@ -364,7 +364,7 @@ export abstract class Store<T> {
           },
         },
       },
-      options
+      options,
     )
   }
 
@@ -383,7 +383,7 @@ export abstract class Store<T> {
           },
         },
       },
-      options
+      options,
     )
 
     if (!response?.Responses?.[this.getTableName()]?.length) return []
@@ -397,7 +397,7 @@ export abstract class Store<T> {
    */
   async batchWrite(
     changes: BatchChange[],
-    options?: HttpHandlerOptions
+    options?: HttpHandlerOptions,
   ): Promise<BatchWriteCommandOutput> {
     if (!changes || !Array.isArray(changes)) throw new Error('"changes" parameter must be an array')
     if (!changes.length) return { $metadata: {} }
@@ -407,7 +407,7 @@ export abstract class Store<T> {
           [this.getTableName()]: changes,
         },
       },
-      options
+      options,
     )
   }
 
@@ -417,7 +417,7 @@ export abstract class Store<T> {
    */
   async batchWriteAll(
     changes: BatchChange[],
-    options?: HttpHandlerOptions
+    options?: HttpHandlerOptions,
   ): Promise<BatchWriteCommandOutput> {
     if (!changes || !Array.isArray(changes)) throw new Error('"changes" parameter must be an array')
     if (!changes.length) return { $metadata: {} }
@@ -427,7 +427,7 @@ export abstract class Store<T> {
           [this.getTableName()]: changes,
         },
       },
-      options
+      options,
     )
   }
 
@@ -464,7 +464,7 @@ export function asIndexKey(
   dynamo: ArcDynamoClient,
   indexName: string,
   id: string,
-  sortKey?: string
+  sortKey?: string,
 ): TableKey {
   if (!dynamo[_indexes][indexName]) {
     throw new Error(`dynamo client does not have an index named ${indexName}`)
